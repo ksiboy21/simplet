@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useRates, useTerms, useUserOrders } from '@/lib/useMockData';
 import { db } from '@/lib/supabase';
+import { sendSMS } from '@/lib/solapi';
 
 interface QuickBuybackProps {
   onSuccess?: () => void;
@@ -94,6 +95,13 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
         voucher_images: uploadedUrls,
         is_my_order: true,
       });
+
+      // Send Confirmation SMS
+      try {
+        await sendSMS(phoneNumber, `안녕하세요, ${applicantName}님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
+      } catch (smsError) {
+        console.error('Failed to send confirmation SMS:', smsError);
+      }
 
       if (onSuccess) {
         onSuccess();
