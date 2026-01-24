@@ -1,7 +1,9 @@
 import React from 'react';
 import { Card } from './ui/TossComponents';
-import { ChevronRight, Settings, Zap, CalendarClock, Send, TrendingUp } from 'lucide-react';
+import { ChevronRight, Settings, Zap, CalendarClock, Send, TrendingUp, Phone } from 'lucide-react';
 import { useRates } from '@/lib/useMockData';
+import kakaoIcon from '@/assets/kakao_icon.png';
+import lineIcon from '@/assets/line_icon.png';
 
 interface HomeProps {
   onNavigate: (tab: string) => void;
@@ -145,57 +147,52 @@ export const Home = ({ onNavigate }: HomeProps) => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#191F28] -mx-5 -mb-20 px-6 pt-10 pb-24 mt-12 text-white">
+      <footer className="bg-[#F9FAFB] -mx-5 -mb-20 px-6 pt-10 pb-24 mt-12">
         {/* Customer Center */}
         <div className="space-y-4 mb-8">
-          <h3 className="text-[17px] font-bold">고객센터</h3>
+          <h3 className="text-[17px] font-bold text-[#333D4B]">고객센터</h3>
           <div className="space-y-2">
-            <a href="tel:010-7393-1157" className="flex items-center gap-3 text-[#B0B8C1] text-[15px] hover:text-white transition-colors">
-              <span className="w-5 flex justify-center"><Zap size={18} className="rotate-12" /></span>
-              <span className="tracking-wide">010-7393-1157</span>
+            <a href="tel:010-7393-1157" className="flex items-center gap-3 text-[#596574] text-[15px] hover:text-[#333D4B] transition-colors">
+              <span className="w-5 flex justify-center"><Phone size={20} strokeWidth={1.5} className="text-[#B0B8C1]" /></span>
+              <span className="tracking-wide font-medium">010-7393-1157</span>
             </a>
-            <div className="flex items-center gap-3 text-[#B0B8C1] text-[15px]">
-              <span className="w-5 flex justify-center">💬</span>
-              <span>라인 : knn900</span>
+            <div className="flex items-center gap-3 text-[#596574] text-[15px]">
+              <span className="w-5 flex justify-center">
+                <img src={lineIcon} alt="Line" className="w-5 h-5 object-contain" />
+              </span>
+              <span className="font-medium">라인 : knn900</span>
             </div>
-            <div className="flex items-center gap-3 text-[#B0B8C1] text-[15px]">
-              <span className="w-5 flex justify-center">🟡</span>
-              <span>카톡 : knn900</span>
+            <div className="flex items-center gap-3 text-[#596574] text-[15px]">
+              <span className="w-5 flex justify-center">
+                <img src={kakaoIcon} alt="Kakao" className="w-5 h-5 object-contain" />
+              </span>
+              <span className="font-medium">카톡 : knn900</span>
             </div>
           </div>
-          <div className="text-[13px] text-[#6B7684] mt-4">
-            <p>운영시간: 연중무휴 24시간</p>
-            <p>점심시간: 12:00 - 13:00</p>
+          <div className="text-[13px] text-[#8B95A1] mt-4 pl-1">
+            <p className="leading-snug">운영시간: 평일 09:00 ~ 18:00</p>
+            <p className="leading-snug mt-1">점심시간: 12:00 - 13:00</p>
           </div>
         </div>
 
         {/* Warning Box */}
-        <div className="bg-[#232936] p-4 rounded-xl flex gap-3 mb-8 border border-[#333D4B]">
-          <div className="text-[#0064FF] mt-0.5">
+        <div className="bg-white p-4 rounded-xl flex gap-3 mb-8 shadow-sm border border-[#F2F4F6]">
+          <div className="text-[#0064FF] mt-0.5 shrink-0">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </div>
-          <p className="text-[13px] text-[#B0B8C1] leading-relaxed">
+          <p className="text-[13px] text-[#6B7684] leading-relaxed break-keep">
             본 서비스는 정상적인 상품권 유통을 목적으로 하며, 불법 자금 세탁 및 범죄 행위를 엄격히 금지합니다.
           </p>
         </div>
 
-        {/* Links */}
-        <div className="flex gap-4 text-[13px] text-[#8B95A1] font-medium mb-6">
-          <button>이용약관</button>
-          <div className="w-[1px] h-3 bg-[#333D4B] my-auto"></div>
-          <button>개인정보처리방침</button>
-          <div className="w-[1px] h-3 bg-[#333D4B] my-auto"></div>
-          <button>사업자정보</button>
-        </div>
-
         {/* Biz Info */}
-        <div className="text-[11px] text-[#4E5968] space-y-1 mb-8">
-          <p className="font-semibold">심플티켓</p>
-          <p>사업자등록번호: 123-45-67890</p>
-          <p>주소: 서울특별시 강남구 테헤란로 123</p>
-          <p className="mt-4 text-[#333D4B]">© 2026 SimpleTicket. All rights reserved.</p>
+        <div className="text-[11px] text-[#8B95A1] space-y-1.5 mb-8 px-1">
+          <p className="font-bold text-[#4E5968] text-[12px] mb-2">심플티켓</p>
+          <p>사업자등록번호: 454-93-02207</p>
+          <p>주소: 대구광역시 남구 명덕로28길 52, 3층 23호(대명동)</p>
+          <p className="pt-4 text-[#C1C6CC]">© 2026 SimpleTicket. All rights reserved.</p>
         </div>
       </footer>
     </div>
