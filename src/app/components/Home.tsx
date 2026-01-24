@@ -11,6 +11,11 @@ export const Home = ({ onNavigate }: HomeProps) => {
   const { rates } = useRates();
 
   const reserveRates = rates.filter(r => r.type === 'reserve' && r.active);
+  // Manually add 'Shinsegae Emart' if not present (Frontend override)
+  if (!reserveRates.find(r => r.name.includes('이마트') || r.name.includes('신세계'))) {
+    reserveRates.push({ id: 9999, type: 'reserve', name: '신세계 이마트전용', rate: 80, active: true });
+  }
+
   const instantRates = rates.filter(r => r.type === 'instant' && r.active);
 
   const formatName = (name: string) => name.replace(' 상품권', '');

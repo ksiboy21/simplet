@@ -67,6 +67,7 @@ CREATE TABLE terms (
 -- =============================================
 INSERT INTO rates (type, name, rate) VALUES
   ('reserve', '롯데 모바일 상품권', 80),
+  ('reserve', '신세계 이마트전용 상품권', 80),
   ('instant', '신세계 모바일 상품권', 90),
   ('instant', '신세계 지류 상품권', 91),
   ('instant', '롯데 모바일 상품권', 90),

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useUserOrders } from '@/lib/useMockData';
 import { db } from '@/lib/supabase';
+import { sendSMS } from '@/lib/solapi';
 
 interface UserOrderHistoryProps {
   onBack: () => void;
@@ -17,6 +18,8 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
 
   const [step, setStep] = useState<'input' | 'verify' | 'list'>('input');
   const [code, setCode] = useState('');
+  const [codeState, setCodeState] = useState('');
+  const [cooldown, setCooldown] = useState(0);
   const [offsetStates, setOffsetStates] = useState<Record<string, boolean>>({});
   const [filesMap, setFilesMap] = useState<Record<string, File[]>>({});
   const [submittedStates, setSubmittedStates] = useState<Record<string, boolean>>({});
@@ -28,12 +31,46 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
       toast.error('올바른 휴대폰 번호를 입력해주세요.');
       return;
     }
-    toast.success('인증번호가 발송되었습니다. (테스트: 1234)');
-    setStep('verify');
+
+    // Bypass for test numbers
+    if (phone === '01000000000') {
+      const testCode = '1234';
+      setCodeState(testCode); // Renamed state to avoid conflict if any, or reuse existing
+      toast.success('테스트 모드: 인증번호 1234');
+      setStep('verify');
+      return;
+    }
+
+    const generatedCode = Math.floor(1000 + Math.random() * 9000).toString();
+    setCodeState(generatedCode); // Need to rename 'code' state to 'generatedCodeState' or similar to store expected code vs input code? 
+    // Wait, UserOrderHistory has 'code' state for INPUT. I need a state for EXPECTED code.
+    // I need to add that state first? Or I can add it in this chunk if I'm clever. 
+    // Actually, I should probably do this in a separate chunk to add the state.
+
+    try {
+      await sendSMS(phone, `[SimpleTicket] 인증번호 [${generatedCode}]를 입력해주세요.`);
+      setStep('verify');
+      toast.success('인증번호가 발송되었습니다.');
+
+      // Start cooldown
+      setCooldown(10);
+      const timer = setInterval(() => {
+        setCooldown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error) {
+      console.error(error);
+      toast.error('문자 발송 실패');
+    }
   };
 
   const handleVerify = async () => {
-    if (code === '1234') {
+    if (code === codeState) { // compare input 'code' with expected 'codeState'
       toast.success('인증되었습니다.');
       setVerifiedPhone(phone);
       setStep('list');
@@ -133,8 +170,8 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                     maxLength={11}
                   />
                 </div>
-                <Button className="w-full py-4 text-[16px]" onClick={handleSendCode}>
-                  인증번호 받기
+                <Button className="w-full py-4 text-[16px]" onClick={handleSendCode} disabled={cooldown > 0}>
+                  {cooldown > 0 ? `${cooldown}초 후 재요청` : "인증번호 받기"}
                 </Button>
               </>
             ) : (

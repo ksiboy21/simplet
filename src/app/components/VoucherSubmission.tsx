@@ -17,7 +17,7 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [agreed, setAgreed] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
-  const [voucherType, setVoucherType] = useState('shinsegae');
+  const [voucherType, setVoucherType] = useState('shinsegae_mobile');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [applicantName, setApplicantName] = useState('');
   const [bankName, setBankName] = useState('');
@@ -37,7 +37,6 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
 
   const getVoucherName = (typeKey: string) => {
     const map: Record<string, string> = {
-      'shinsegae': '신세계 지류',
       'shinsegae_mobile': '신세계 모바일',
       'lotte': '롯데 모바일'
     };
@@ -47,7 +46,7 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    if (!agreed || !agreedPrivacy) return toast.error("모든 약관��� 동의해주세요.");
+    if (!agreed || !agreedPrivacy) return toast.error("모든 약관에 동의해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
     if (files.length === 0) return toast.error("상품권을 업로드해주세요.");
 
@@ -102,7 +101,6 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
           <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">상품권 종류</label>
           <div className="flex gap-2">
             {[
-              { id: 'shinsegae', label: '신세계 지류' },
               { id: 'shinsegae_mobile', label: '신세계 모바일' },
               { id: 'lotte', label: '롯데 모바일' }
             ].map((item) => (

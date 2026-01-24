@@ -43,10 +43,18 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Constants & Calculations
-  // Find rate for Lotte Mobile (Reserve)
-  const rateObj = rates.find(r => r.type === 'reserve' && r.name.includes('롯데'));
-  const RATE = rateObj ? rateObj.rate / 100 : 0.8;
-  const RATE_PERCENT = rateObj ? rateObj.rate : 80;
+  // Find rate based on selected type
+  const getRateName = (type: string) => {
+    if (type === 'lotte') return '롯데';
+    if (type === 'shinsegae_emart') return '이마트'; // or check specific name in DB
+    return '';
+  };
+
+  const rateObj = rates.find(r => r.type === 'reserve' && r.name.includes(getRateName(voucherType)));
+  // Default rates if DB fetch fails or not found
+  const defaultRate = voucherType === 'lotte' ? 0.8 : 0.8;
+  const RATE = rateObj ? rateObj.rate / 100 : defaultRate;
+  const RATE_PERCENT = rateObj ? rateObj.rate : (defaultRate * 100);
 
   const DEPOSIT_RATE = 0.5; // 50% of Face Value
 
@@ -69,6 +77,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+    if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
@@ -83,7 +92,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       const bankBookUrl = bankFiles.length > 0 ? await db.uploadImage(bankFiles[0]) : '';
 
       await addOrder({
-        name: '롯데 모바일',
+        name: voucherType === 'lotte' ? '롯데 모바일' : '신세계 이마트전용',
         amount: faceValue,
         deposit: deposit,
         expected_date: availableDate,
@@ -134,9 +143,33 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className="flex-1 h-12 rounded-[16px] font-medium text-[15px] transition-all border bg-[#E8F3FF] border-[#0064FF] text-[#0064FF]"
+                  onClick={() => setVoucherType('lotte')}
+                  className={cn(
+                    "flex-1 h-12 rounded-[16px] font-medium text-[13px] transition-all border whitespace-nowrap flex flex-col items-center justify-center leading-none gap-1",
+                    voucherType === 'lotte'
+                      ? "bg-[#E8F3FF] border-[#0064FF] text-[#0064FF]"
+                      : "bg-white border-transparent text-[#4E5968] hover:bg-gray-50"
+                  )}
                 >
-                  롯데 모바일
+                  <span>롯데 모바일</span>
+                  <span className={cn("text-[11px]", voucherType === 'lotte' ? "text-[#0064FF]" : "text-[#8B95A1]")}>
+                    {rates.find(r => r.type === 'reserve' && r.name.includes('롯데'))?.rate || 80}%
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVoucherType('shinsegae_emart')}
+                  className={cn(
+                    "flex-1 h-12 rounded-[16px] font-medium text-[13px] transition-all border whitespace-nowrap flex flex-col items-center justify-center leading-none gap-1",
+                    voucherType === 'shinsegae_emart'
+                      ? "bg-[#E8F3FF] border-[#0064FF] text-[#0064FF]"
+                      : "bg-white border-transparent text-[#4E5968] hover:bg-gray-50"
+                  )}
+                >
+                  <span>신세계 이마트전용</span>
+                  <span className={cn("text-[11px]", voucherType === 'shinsegae_emart' ? "text-[#0064FF]" : "text-[#8B95A1]")}>
+                    {rates.find(r => r.type === 'reserve' && r.name.includes('이마트'))?.rate || 80}%
+                  </span>
                 </button>
               </div>
             </div>
@@ -172,7 +205,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
             <div className="bg-[#FFF8F8] p-6 rounded-[24px] border border-red-100 space-y-4">
               <div className="flex items-center gap-2 text-red-600">
                 <AlertCircle size={20} />
-                <h3 className="text-[18px] font-bold">주의: 잔금상계 페널티</h3>
+                <h3 className="text-[18px] font-bold">잔금상계 처리가능</h3>
               </div>
 
               <div className="space-y-4">
@@ -181,11 +214,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                 </p>
 
                 <div className="bg-white p-4 rounded-[16px] space-y-2">
-                  <p className="text-[14px] text-red-500 font-semibold leading-relaxed">
-                    예) 50만원권 예약 후 미이행 시:
-                  </p>
-                  <p className="text-[14px] text-[#4E5968]">
-                    잔금 15만원 미지급 + <span className="text-red-500 font-bold">35만원 상품권 납부</span>
+                  <p className="text-[14px] text-[#4E5968] font-medium leading-relaxed">
+                    <span className="text-red-500 font-bold">예)</span> 50만원권 예약 후 물량 부족시 35만원권 상품권만 전송 (잔금지급 없음)
                   </p>
                 </div>
               </div>
@@ -195,7 +225,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               <Checkbox
                 checked={isUnderstood}
                 onChange={(e) => setIsUnderstood(e.target.checked)}
-                label="위 매입 구조와 패널티 정책을 모두 이해했습니다"
+                label="위 매입 구조와 잔금상계 정책을 모두 이해했습니다"
               />
               <Button
                 fullWidth
@@ -220,23 +250,36 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Voucher Type */}
               <div className="space-y-2">
-                <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">상품권 종류</label>
                 <div className="flex gap-2">
-                  {['lotte'].map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setVoucherType(type)}
-                      className={cn(
-                        "flex-1 h-12 rounded-[16px] font-medium text-[15px] transition-all border",
-                        voucherType === type
-                          ? "bg-[#E8F3FF] border-[#0064FF] text-[#0064FF]"
-                          : "bg-white border-transparent text-[#4E5968] hover:bg-gray-50"
-                      )}
-                    >
-                      롯데모바일
-                    </button>
-                  ))}
+                  {[
+                    { id: 'lotte', label: '롯데 모바일' },
+                    { id: 'shinsegae_emart', label: '신세계 이마트전용' }
+                  ].map((item) => {
+                    // Calculate rate for this item
+                    const itemRateName = item.id === 'lotte' ? '롯데' : '이마트';
+                    // Fallback to default if not found in rates array
+                    const foundRate = rates.find(r => r.type === 'reserve' && r.name.includes(itemRateName));
+                    const rateValue = foundRate ? foundRate.rate : 80;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setVoucherType(item.id)}
+                        className={cn(
+                          "flex-1 h-12 rounded-[16px] font-medium text-[13px] transition-all border whitespace-nowrap flex flex-col items-center justify-center leading-none gap-1",
+                          voucherType === item.id
+                            ? "bg-[#E8F3FF] border-[#0064FF] text-[#0064FF]"
+                            : "bg-white border-transparent text-[#4E5968] hover:bg-gray-50"
+                        )}
+                      >
+                        <span>{item.label}</span>
+                        <span className={cn("text-[11px]", voucherType === item.id ? "text-[#0064FF]" : "text-[#8B95A1]")}>
+                          {rateValue}%
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -271,6 +314,23 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   value={contact}
                   onChange={setContact}
                   onVerifiedChange={setIsPhoneVerified}
+                  onBeforeSend={async () => {
+                    if (!contact || contact.length < 10) return false;
+                    try {
+                      const orders = await db.getUserOrders(contact);
+                      const duplicate = orders.find(o =>
+                        o.status === '주문 확인중' || o.status === '예약일정 대기중'
+                      );
+                      if (duplicate) {
+                        alert(`이미 진행 중인 주문건이 있습니다.\n(주문번호: #${duplicate.id.slice(0, 8)})`);
+                        return false;
+                      }
+                      return true;
+                    } catch (e) {
+                      console.error(e);
+                      return true; // Let it proceed if check fails? Or block? Safe to allow or maybe block. I'll allow.
+                    }
+                  }}
                 />
               </Card>
 
@@ -404,7 +464,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={() => setStep(1)} type="button" className="whitespace-nowrap shrink-0 px-6">이전</Button>
-                <Button fullWidth type="submit" disabled={!agreedFinal || !agreedPrivacy || isSubmitting}>
+                <Button fullWidth type="submit" disabled={!agreedFinal || !agreedPrivacy || isSubmitting || !amount}>
                   {isSubmitting ? "처리 중..." : "예약 신청하기"}
                 </Button>
               </div>
