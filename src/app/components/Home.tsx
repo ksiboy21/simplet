@@ -187,7 +187,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
         <div className="text-[11px] text-[#8B95A1] space-y-1.5 mb-8 px-1">
           <p className="font-bold text-[#4E5968] text-[12px] mb-2">심플티켓</p>
           <p>사업자등록번호: 454-93-02207</p>
-          <p>주소: 대구광역시 남구 명덕로28길 52, 3층 23호(대명동)</p>
+          <p>주소: 대구광역시 남구 성명공원길 30</p>
           <p className="pt-4 text-[#C1C6CC]">© 2026 SimpleTicket. All rights reserved.</p>
         </div>
       </footer>
