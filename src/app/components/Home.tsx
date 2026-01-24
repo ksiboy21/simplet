@@ -147,7 +147,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#F9FAFB] -mx-5 -mb-20 px-6 pt-10 pb-24 mt-12">
+      <footer className="bg-[#F9FAFB] -mx-6 -mb-44 px-6 pt-10 pb-32 mt-12">
         {/* Customer Center */}
         <div className="space-y-4 mb-8">
           <h3 className="text-[17px] font-bold text-[#333D4B]">고객센터</h3>
