@@ -144,16 +144,58 @@ export const Home = ({ onNavigate }: HomeProps) => {
         </div>
       </section>
 
-      {/* Contact Info Footer */}
-      <footer className="py-8 text-center space-y-3 pb-12">
-        <h3 className="text-[#8B95A1] text-sm font-bold">고객센터</h3>
-        <div className="text-[#8B95A1] text-sm font-medium space-y-1.5">
-          <p>연락처: 010-7393-1157</p>
-          <div className="flex justify-center gap-3">
-            <span>라인: knn900</span>
-            <span className="w-[1px] h-3 bg-gray-300 my-auto"></span>
-            <span>카톡: knn900</span>
+      {/* Footer */}
+      <footer className="bg-[#191F28] -mx-5 -mb-20 px-6 pt-10 pb-24 mt-12 text-white">
+        {/* Customer Center */}
+        <div className="space-y-4 mb-8">
+          <h3 className="text-[17px] font-bold">고객센터</h3>
+          <div className="space-y-2">
+            <a href="tel:010-7393-1157" className="flex items-center gap-3 text-[#B0B8C1] text-[15px] hover:text-white transition-colors">
+              <span className="w-5 flex justify-center"><Zap size={18} className="rotate-12" /></span>
+              <span className="tracking-wide">010-7393-1157</span>
+            </a>
+            <div className="flex items-center gap-3 text-[#B0B8C1] text-[15px]">
+              <span className="w-5 flex justify-center">💬</span>
+              <span>라인 : knn900</span>
+            </div>
+            <div className="flex items-center gap-3 text-[#B0B8C1] text-[15px]">
+              <span className="w-5 flex justify-center">🟡</span>
+              <span>카톡 : knn900</span>
+            </div>
           </div>
+          <div className="text-[13px] text-[#6B7684] mt-4">
+            <p>운영시간: 연중무휴 24시간</p>
+            <p>점심시간: 12:00 - 13:00</p>
+          </div>
+        </div>
+
+        {/* Warning Box */}
+        <div className="bg-[#232936] p-4 rounded-xl flex gap-3 mb-8 border border-[#333D4B]">
+          <div className="text-[#0064FF] mt-0.5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <p className="text-[13px] text-[#B0B8C1] leading-relaxed">
+            본 서비스는 정상적인 상품권 유통을 목적으로 하며, 불법 자금 세탁 및 범죄 행위를 엄격히 금지합니다.
+          </p>
+        </div>
+
+        {/* Links */}
+        <div className="flex gap-4 text-[13px] text-[#8B95A1] font-medium mb-6">
+          <button>이용약관</button>
+          <div className="w-[1px] h-3 bg-[#333D4B] my-auto"></div>
+          <button>개인정보처리방침</button>
+          <div className="w-[1px] h-3 bg-[#333D4B] my-auto"></div>
+          <button>사업자정보</button>
+        </div>
+
+        {/* Biz Info */}
+        <div className="text-[11px] text-[#4E5968] space-y-1 mb-8">
+          <p className="font-semibold">심플티켓</p>
+          <p>사업자등록번호: 123-45-67890</p>
+          <p>주소: 서울특별시 강남구 테헤란로 123</p>
+          <p className="mt-4 text-[#333D4B]">© 2026 SimpleTicket. All rights reserved.</p>
         </div>
       </footer>
     </div>
