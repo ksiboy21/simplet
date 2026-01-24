@@ -21,17 +21,18 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
   const [filesMap, setFilesMap] = useState<Record<string, File[]>>({});
   const [submittedStates, setSubmittedStates] = useState<Record<string, boolean>>({});
   const [isSubmittingMap, setIsSubmittingMap] = useState<Record<string, boolean>>({});
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
-  const handleSendCode = () => {
+  const handleSendCode = async () => {
     if (phone.length < 10) {
       toast.error('올바른 휴대폰 번호를 입력해주세요.');
       return;
     }
-    toast.success('인증번호가 발송되었습니다. (1234)');
+    toast.success('인증번호가 발송되었습니다. (테스트: 1234)');
     setStep('verify');
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (code === '1234') {
       toast.success('인증되었습니다.');
       setVerifiedPhone(phone);
@@ -164,6 +165,141 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
     );
   }
 
+  // Order Detail View
+  if (selectedOrder) {
+    return (
+      <div className="space-y-6 pb-20">
+        <header className="flex items-center gap-3">
+          <button onClick={() => setSelectedOrder(null)} className="p-1 -ml-1">
+            <ArrowLeft size={24} className="text-[#191F28]" />
+          </button>
+          <h1 className="text-xl font-bold text-[#191F28]">주문 상세 정보</h1>
+        </header>
+
+        <Card className="p-6 bg-white border-none shadow-sm space-y-8">
+          {/* Header Info */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={cn(
+                "text-[11px] font-bold px-1.5 py-0.5 rounded",
+                selectedOrder.type === 'reserve' ? 'bg-blue-50 text-blue-600' :
+                  selectedOrder.type === 'submission' ? 'bg-slate-100 text-slate-600' : 'bg-yellow-50 text-yellow-600'
+              )}>
+                {selectedOrder.type === 'reserve' ? '예약판매' : selectedOrder.type === 'submission' ? '상품권 보내기' : '즉시판매'}
+              </span>
+              <span className="text-sm text-gray-500">
+                {new Date(selectedOrder.created_at).toLocaleDateString()}
+              </span>
+            </div>
+            <h2 className="text-xl font-bold text-[#191F28] mb-1">{selectedOrder.name}</h2>
+            <div className="text-sm text-gray-500">주문번호 #{selectedOrder.id.slice(0, 8)}</div>
+          </div>
+
+          {/* Basic Info */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-bold text-[#191F28] border-b border-gray-100 pb-2">기본 정보</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-[#8B95A1] block mb-1">신청자명</span>
+                <span className="text-sm font-medium text-[#333D4B]">{selectedOrder.applicant_name || '-'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-[#8B95A1] block mb-1">연락처</span>
+                <span className="text-sm font-medium text-[#333D4B]">{selectedOrder.phone || '-'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-[#8B95A1] block mb-1">매입가</span>
+                <span className="text-sm font-medium text-[#333D4B]">{selectedOrder.rate}%</span>
+              </div>
+              <div>
+                <span className="text-xs text-[#8B95A1] block mb-1">총 금액</span>
+                <span className="text-sm font-bold text-[#0064FF]">{selectedOrder.amount.toLocaleString()}원</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Financial Info */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-bold text-[#191F28] border-b border-gray-100 pb-2">정산 계좌 정보</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-[#8B95A1] block mb-1">은행명</span>
+                <span className="text-sm font-medium text-[#333D4B]">{selectedOrder.bank_name || '-'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-[#8B95A1] block mb-1">계좌번호</span>
+                <span className="text-sm font-medium text-[#333D4B]">{selectedOrder.account_number || '-'}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Reserve Specific Info */}
+          {selectedOrder.type === 'reserve' && (
+            <section className="space-y-4">
+              <h3 className="text-sm font-bold text-[#191F28] border-b border-gray-100 pb-2">예약 정보</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-[#8B95A1] block mb-1">예약 희망일</span>
+                  <span className="text-sm font-medium text-[#333D4B]">{selectedOrder.expected_date || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-[#8B95A1] block mb-1">선지급금</span>
+                  <span className="text-sm font-bold text-[#0064FF]">{selectedOrder.deposit?.toLocaleString() || 0}원</span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Evidence Images */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-bold text-[#191F28] border-b border-gray-100 pb-2">제출된 증빙</h3>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                {/* ID Card */}
+                {selectedOrder.id_card_image && (
+                  <div>
+                    <p className="text-xs font-semibold text-[#8B95A1] mb-2">신분증 사본</p>
+                    <div className="w-full aspect-[4/3] rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                      <img src={selectedOrder.id_card_image} alt="id-card" className="w-full h-full object-contain" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Bank Book */}
+                {selectedOrder.bank_book_image && (
+                  <div>
+                    <p className="text-xs font-semibold text-[#8B95A1] mb-2">통장 사본</p>
+                    <div className="w-full aspect-[4/3] rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                      <img src={selectedOrder.bank_book_image} alt="bank-book" className="w-full h-full object-contain" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Voucher Images */}
+              <div>
+                <p className="text-xs font-semibold text-[#8B95A1] mb-2">상품권 이미지</p>
+                {selectedOrder.voucher_images && selectedOrder.voucher_images.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {selectedOrder.voucher_images.map((img: string, idx: number) => (
+                      <div key={idx} className="w-24 h-24 shrink-0 rounded-lg overflow-hidden border border-gray-200">
+                        <img src={img} alt={`voucher-${idx}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="w-full h-20 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-center text-xs text-gray-400">
+                    등록된 상품권 이미지가 없습니다
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
@@ -184,12 +320,17 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
             : new Date(order.created_at).toISOString().split('T')[0];
 
           return (
-            <Card key={order.id} className="p-5 bg-white border-none shadow-sm active:scale-[0.98] transition-transform">
+            <Card
+              key={order.id}
+              className="p-5 bg-white border-none shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+              onClick={() => setSelectedOrder(order)}
+            >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${order.type === 'reserve' ? 'bg-blue-50 text-blue-600' : 'bg-yellow-50 text-yellow-600'
+                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${order.type === 'reserve' ? 'bg-blue-50 text-blue-600' :
+                    order.type === 'submission' ? 'bg-slate-100 text-slate-600' : 'bg-yellow-50 text-yellow-600'
                     }`}>
-                    {order.type === 'reserve' ? '예약판매' : '즉시판매'}
+                    {order.type === 'reserve' ? '예약판매' : order.type === 'submission' ? '상품권 보내기' : '즉시판매'}
                   </span>
                   <span className="text-xs text-[#8B95A1]">{displayDate}</span>
                 </div>

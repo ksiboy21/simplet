@@ -8,7 +8,7 @@ import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useOrders, useRates, useTerms } from '@/lib/useMockData';
+import { useOrders, useRates, useTerms, Rate } from '@/lib/useMockData';
 import { Terms } from '@/lib/mockDb';
 
 interface AdminDashboardProps {
@@ -46,13 +46,27 @@ const TYPE_STYLES: Record<string, string> = {
 
 const RateManagement = () => {
   const { rates, updateRate } = useRates();
+  const [localRates, setLocalRates] = useState<Rate[]>([]);
+
+  useEffect(() => {
+    if (rates.length > 0) {
+      setLocalRates(rates);
+    }
+  }, [rates]);
 
   const handleRateChange = (id: number, newRate: string) => {
-    updateRate(id, Number(newRate));
+    setLocalRates(prev => prev.map(r => r.id === id ? { ...r, rate: Number(newRate) } : r));
   };
 
-  const handleSave = () => {
-    toast.success('변경사항이 저장되었습니다.');
+  const handleSave = async () => {
+    try {
+      const updatePromises = localRates.map(rate => updateRate(rate.id, rate.rate));
+      await Promise.all(updatePromises);
+      toast.success('변경사항이 저장되었습니다.');
+    } catch (error) {
+      console.error('Failed to save rates:', error);
+      toast.error('저장에 실패했습니다.');
+    }
   };
 
   return (
@@ -73,7 +87,7 @@ const RateManagement = () => {
             </h3>
           </div>
           <div className="p-4 space-y-4">
-            {rates.filter(r => r.type === 'reserve').map(item => (
+            {localRates.filter(r => r.type === 'reserve').map(item => (
               <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <span className="font-medium text-[#333D4B]">{item.name}</span>
                 <div className="flex items-center gap-3">
@@ -99,7 +113,7 @@ const RateManagement = () => {
             </h3>
           </div>
           <div className="p-4 space-y-4">
-            {rates.filter(r => r.type === 'instant' && !r.name.includes('컬쳐랜드')).map(item => (
+            {localRates.filter(r => r.type === 'instant' && !r.name.includes('컬쳐랜드')).map(item => (
               <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <span className="font-medium text-[#333D4B]">{item.name}</span>
                 <div className="flex items-center gap-3">

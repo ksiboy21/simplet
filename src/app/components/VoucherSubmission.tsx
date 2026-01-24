@@ -124,11 +124,6 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
         </div>
 
         <Card className="space-y-4">
-          <Input
-            placeholder="신청자 성함"
-            value={applicantName}
-            onChange={(e) => setApplicantName(e.target.value)}
-          />
           <div className="flex gap-2">
             <div className="w-[30%]">
               <Input
@@ -145,6 +140,11 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
               />
             </div>
           </div>
+          <Input
+            placeholder="예금주"
+            value={applicantName}
+            onChange={(e) => setApplicantName(e.target.value)}
+          />
           <PhoneVerificationInput
             value={phoneNumber}
             onChange={setPhoneNumber}
