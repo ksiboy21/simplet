@@ -145,9 +145,9 @@ export const Home = ({ onNavigate }: HomeProps) => {
       </section>
 
       {/* Contact Info Footer */}
-      <footer className="py-8 text-center space-y-2 pb-12">
-        <h3 className="text-[#8B95A1] text-xs font-semibold">고객센터</h3>
-        <div className="text-[#8B95A1] text-xs space-y-1">
+      <footer className="py-8 text-center space-y-3 pb-12">
+        <h3 className="text-[#8B95A1] text-sm font-bold">고객센터</h3>
+        <div className="text-[#8B95A1] text-sm font-medium space-y-1.5">
           <p>연락처: 010-7393-1157</p>
           <div className="flex justify-center gap-3">
             <span>라인: knn900</span>
