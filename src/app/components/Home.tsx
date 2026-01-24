@@ -2,8 +2,8 @@ import React from 'react';
 import { Card } from './ui/TossComponents';
 import { ChevronRight, Settings, Zap, CalendarClock, Send, TrendingUp, Phone } from 'lucide-react';
 import { useRates } from '@/lib/useMockData';
-import kakaoIcon from '@/assets/kakao_icon.png';
-import lineIcon from '@/assets/line_icon.png';
+import kakaoIcon from '@/assets/Frame 2.png';
+import lineIcon from '@/assets/Frame 1.png';
 
 interface HomeProps {
   onNavigate: (tab: string) => void;
