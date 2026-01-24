@@ -42,8 +42,14 @@ export const sendSMS = async (to: string, text: string) => {
     const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
 
     try {
-        // Switch to Single Message API for better reliability and simpler debugging
-        const response = await fetch('/api/solapi/messages/v4/send', {
+        // Use absolute URL for direct call (requires strict CORS handling or proxy)
+        // In static deployment, local proxy '/api/solapi' does not exist.
+        // We attempt direct call. If CORS fails, a backend proxy is required.
+        const apiUrl = 'https://api.solapi.com/messages/v4/send';
+
+        console.log("Sending SMS to:", to, "using Key:", apiKey ? apiKey.slice(0, 4) + '***' : 'MISSING');
+
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Authorization': authHeader,
