@@ -139,6 +139,17 @@ export const db = {
         return data as Order;
     },
 
+    async hasActiveReservations() {
+        const { count, error } = await supabase
+            .from('orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('type', 'reserve')
+            .in('status', ['주문 확인중', '예약일정 대기중']);
+
+        if (error) throw error;
+        return (count || 0) > 0;
+    },
+
     // Rates
     async getRates() {
         const { data, error } = await supabase

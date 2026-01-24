@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useTerms, useUserOrders } from '@/lib/useMockData';
 import { db } from '@/lib/supabase';
+import { sendSMS } from '@/lib/solapi';
 
 interface VoucherSubmissionProps {
   onSuccess?: () => void;
@@ -71,6 +72,13 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
         voucher_images: uploadedUrls,
         is_my_order: true,
       });
+
+      // Send Confirmation SMS
+      try {
+        await sendSMS(phoneNumber, `[심플티켓] 상품권 전송이 완료되었습니다. 검수 후 입금해드릴 예정입니다.`);
+      } catch (smsError) {
+        console.error('Failed to send confirmation SMS:', smsError);
+      }
 
       if (onSuccess) {
         onSuccess();

@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useOrders, useRates, useTerms, Rate } from '@/lib/useMockData';
 import { Terms } from '@/lib/mockDb';
+import { db } from '@/lib/supabase';
 
 interface AdminDashboardProps {
   currentDate: string;
@@ -176,9 +177,19 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
     }
   };
 
-  const handleDateUpdate = () => {
-    onDateChange(dateInput);
-    toast.success(`예약일이 ${dateInput}로 변경되었습니다.`);
+  const handleDateUpdate = async () => {
+    try {
+      const hasActive = await db.hasActiveReservations();
+      if (hasActive) {
+        toast.error('진행 중인 예약 매입 주문(확인중/대기중)이 있어 기준일을 변경할 수 없습니다.');
+        return;
+      }
+      onDateChange(dateInput);
+      toast.success(`예약일이 ${dateInput}로 변경되었습니다.`);
+    } catch (error) {
+      console.error('Date update check failed:', error);
+      toast.error('확인 중 오류가 발생했습니다.');
+    }
   };
 
   const handleStatusChange = (id: number | string, newStatus: string) => {
