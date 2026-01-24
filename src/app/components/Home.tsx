@@ -44,7 +44,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
           <TrendingUp className="text-[#0064FF]" size={18} />
           <h2 className="text-[17px] font-bold text-[#191F28]">오늘의 매입 시세</h2>
         </div>
-        
+
         <Card className="bg-white border-none shadow-[0_2px_16px_rgba(0,0,0,0.04)] p-5">
           {/* Reserve Buyback Section */}
           <div className="mb-6">
@@ -70,7 +70,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
               <Zap size={15} className="text-[#FFB800]" />
               <span className="text-[13px] font-semibold text-[#6B7684]">즉시 매입</span>
             </div>
-            
+
             <div className="space-y-3">
               {instantRates.length > 0 ? instantRates.map(rate => (
                 <div key={rate.id} className="flex justify-between items-center">
@@ -115,7 +115,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
               </div>
               <div className="text-left space-y-0.5">
                 <div className="font-bold text-[#191F28] text-[16px]">예약 판매하기</div>
-                <div className="text-[13px] text-[#8B95A1]">높은 가격으로 미리 판매하세요</div>
+                <div className="text-[13px] text-[#8B95A1]">선지급50% + 잔금30%</div>
               </div>
             </div>
             <ChevronRight size={20} className="text-[#D1D6DB] group-hover:text-[#B0B8C1] group-hover:translate-x-1 transition-all" />
