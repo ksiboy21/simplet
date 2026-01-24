@@ -434,7 +434,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                       <div className="w-full bg-gray-200 text-gray-500 text-xs font-bold py-3 rounded-lg flex items-center justify-center">
                         전송 완료
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}
