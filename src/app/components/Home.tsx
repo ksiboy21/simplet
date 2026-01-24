@@ -151,21 +151,17 @@ export const Home = ({ onNavigate }: HomeProps) => {
         {/* Customer Center */}
         <div className="space-y-4 mb-8">
           <h3 className="text-[17px] font-bold text-[#333D4B]">고객센터</h3>
-          <div className="space-y-2">
-            <a href="tel:010-7393-1157" className="flex items-center gap-3 text-[#596574] text-[15px] hover:text-[#333D4B] transition-colors">
-              <span className="w-5 flex justify-center"><Phone size={20} strokeWidth={1.5} className="text-[#B0B8C1]" /></span>
+          <div className="space-y-3">
+            <a href="tel:010-7393-1157" className="flex items-center gap-2 text-[#596574] text-[15px] hover:text-[#333D4B] transition-colors">
+              <Phone size={28} strokeWidth={1.5} className="text-[#B0B8C1]" />
               <span className="tracking-wide font-medium">010-7393-1157</span>
             </a>
-            <div className="flex items-center gap-3 text-[#596574] text-[15px]">
-              <span className="w-5 flex justify-center">
-                <img src={lineIcon} alt="Line" className="w-5 h-5 object-contain" />
-              </span>
+            <div className="flex items-center gap-2 text-[#596574] text-[15px]">
+              <img src={lineIcon} alt="Line" className="w-7 h-7 object-contain" />
               <span className="font-medium">라인 : knn900</span>
             </div>
-            <div className="flex items-center gap-3 text-[#596574] text-[15px]">
-              <span className="w-5 flex justify-center">
-                <img src={kakaoIcon} alt="Kakao" className="w-5 h-5 object-contain" />
-              </span>
+            <div className="flex items-center gap-2 text-[#596574] text-[15px]">
+              <img src={kakaoIcon} alt="Kakao" className="w-7 h-7 object-contain" />
               <span className="font-medium">카톡 : knn900</span>
             </div>
           </div>
