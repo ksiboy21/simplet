@@ -72,11 +72,14 @@ async function sendSMS(to, text) {
 // --- Main Logic ---
 async function main() {
     let kstTime;
-    const dateArg = process.argv[2]; // Expecting YYYY-MM-DD
+    const args = process.argv.slice(2);
+    const dryRun = args.includes('--dry-run');
+    const dateArg = args.find(arg => arg.match(/^\d{4}-\d{2}-\d{2}$/));
 
     if (dateArg) {
         // override mode
-        console.log(`[OVERRIDE] ⚠️ Simulating date: ${dateArg} (Real SMS will be sent)`);
+        console.log(`[OVERRIDE] ⚠️ Simulating date: ${dateArg}`);
+        if (dryRun) console.log("[DRY-RUN] SMS will NOT be sent. Logging only.");
         // Assume 9AM KST on that day
         kstTime = new Date(`${dateArg}T09:00:00+09:00`);
     } else {
@@ -95,18 +98,27 @@ async function main() {
         .select('*')
         .eq('status', '예약일정 대기중');
 
+    const filterPhoneIdx = args.indexOf('--filter-phone');
+    const filterPhone = filterPhoneIdx !== -1 ? args[filterPhoneIdx + 1] : null;
+
     if (error) {
         console.error('Supabase Error:', error);
         return;
     }
 
-    console.log(`Found ${orders.length} waiting orders.`);
+    let targetOrders = orders;
+    if (filterPhone) {
+        console.log(`[FILTER] 🔍 Only processing orders for phone: ${filterPhone}`);
+        targetOrders = orders.filter(o => o.phone === filterPhone);
+    }
+
+    console.log(`Found ${targetOrders.length} waiting orders (Total in DB: ${orders.length}).`);
 
     // 2. Check dates (KST)
     const today = new Date(kstTime);
     today.setHours(0, 0, 0, 0);
 
-    for (const order of orders) {
+    for (const order of targetOrders) {
         if (!order.expected_date) continue;
 
         // Parse YYYY-MM-DD string to Local Midnight Date object
@@ -126,29 +138,49 @@ async function main() {
 
         if (diffDays === 1) {
             // D-1
-            message = `안녕하세요, ${order.applicant_name}님. 내일은 약정하신 날입니다.\n원활한 진행을 위해 신청 내역을 미리 확인해 주세요.\n${SITE_URL}`;
+            message = `안녕하세요, ${order.applicant_name}님. 내일은 약정하신 날입니다.
+원활한 진행을 위해 신청 내역을 미리 확인해 주세요.
+${SITE_URL}`;
         } else if (diffDays === 0) {
             // D-Day
-            message = `안녕하세요, ${order.applicant_name}님. 오늘은 약정하신 날입니다.\n아래 링크를 통해 약정하신 상품권을 첨부해 주시면 신속히 처리해 드리겠습니다. 감사합니다.\n${SITE_URL}`;
+            message = `안녕하세요, ${order.applicant_name}님. 오늘은 약정하신 날입니다.
+아래 링크를 통해 약정하신 상품권을 첨부해 주시면 신속히 처리해 드리겠습니다. 감사합니다.
+${SITE_URL}`;
         } else if (diffDays < 0) {
             // Overdue
             const overdueDays = Math.abs(diffDays);
 
             // Logic: Daily for first 7 days, then Weekly
-            let shouldSend = false;
+            // "일주일 지나고서 주당 1회" -> overdueDays > 7 && overdueDays % 7 === 0? 
+            // Or starts from day 8? 
+            // "D+1 ~ D+7" -> Daily. 
+            // "D+8+" -> Weekly.
+            // If today is D+8, 8%7 != 0. 
+            // Let's assume weekly means exactly on D+14, D+21 etc. Or maybe D+8, D+15?
+            // "Week passed, then once a week" implies:
+            // Day 1-7: Daily message.
+            // Day 8+: Weekly message. 
+            // Let's set trigger on expected_date + 7 + 7*k.
+            // So if overdueDays > 7, check if (overdueDays - 7) % 7 === 0.
+
             if (overdueDays <= 7) {
-                shouldSend = true;
-                message = `안녕하세요, ${order.applicant_name}님. 약정하신 상품권이 아직 첨부되지 않았습니다.\n지속적인 미이행 시, 이용 약관에 따라 더치트 등록 및 민·형사상 법적 절차가 진행될 수 있음을 엄중히 안내드립니다. 조속한 이행 부탁드립니다.`;
-            } else if (overdueDays % 7 === 0) {
-                shouldSend = true;
-                message = `안녕하세요, ${order.applicant_name}님. 현재 귀하의 계약 불이행으로 인해 법적 조치 중입니다.\n형사 고소와 별개로, 본 계약 의무 불이행으로 발생하는 채권추심 및 민사 소송 비용(송달료, 인지대, 변호사 보수 등) 일체는 판매자인 귀하의 전액 부담으로 청구됩니다. 더 큰 불이익이 발생하기 전에 해결하시기 바랍니다.`;
+                message = `안녕하세요, ${order.applicant_name}님. 약정하신 상품권이 아직 첨부되지 않았습니다.
+지속적인 미이행 시, 이용 약관에 따라 더치트 등록 및 민·형사상 법적 절차가 진행될 수 있음을 엄중히 안내드립니다. 조속한 이행 부탁드립니다.`;
+            } else if (overdueDays % 7 === 1) {
+                // e.g. D+8 (8%7=1), D+15 (15%7=1) -> Weekly starting right after the first week.
+                message = `${order.applicant_name}님, 현재 귀하의 계약 불이행으로 인해 법적 조치 중입니다.
+형사 고소와 별개로, 본 계약 의무 불이행으로 발생하는 채권추심 및 민사 소송 비용(송달료, 인지대, 변호사 보수 등) 일체는 판매자인 귀하의 전액 부담으로 청구됩니다. 더 큰 불이익이 발생하기 전에 해결하시기 바랍니다.`;
             }
         }
 
 
         if (message) {
             console.log(`Sending reminder to ${order.name} (${order.phone}) - D${diffDays >= 0 ? '-' + diffDays : '+' + Math.abs(diffDays)}`);
-            await sendSMS(order.phone, message);
+            if (dryRun) {
+                console.log(`[DRY-RUN] Would send message:\n${message}\n`);
+            } else {
+                await sendSMS(order.phone, message);
+            }
         }
     }
 }

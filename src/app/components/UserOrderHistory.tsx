@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Card, Button, Input } from './ui/TossComponents';
-import { ArrowLeft, MessageCircle, RefreshCw, CheckCircle2, Clock, XCircle, ChevronRight, Upload, X } from 'lucide-react';
+import { ArrowLeft, MessageCircle, ChevronRight, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useUserOrders } from '@/lib/useMockData';
 import { db } from '@/lib/supabase';
-import { sendSMS } from '@/lib/solapi';
+
 
 interface UserOrderHistoryProps {
   onBack: () => void;
@@ -16,67 +16,23 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
   const [verifiedPhone, setVerifiedPhone] = useState('');
   const { orders, updateOrder } = useUserOrders(verifiedPhone);
 
-  const [step, setStep] = useState<'input' | 'verify' | 'list'>('input');
-  const [code, setCode] = useState('');
-  const [codeState, setCodeState] = useState('');
-  const [cooldown, setCooldown] = useState(0);
+  const [step, setStep] = useState<'input' | 'list'>('input');
+
+  // Unused logic removed: code, cooldown, sendSMS
   const [offsetStates, setOffsetStates] = useState<Record<string, boolean>>({});
   const [filesMap, setFilesMap] = useState<Record<string, File[]>>({});
   const [submittedStates, setSubmittedStates] = useState<Record<string, boolean>>({});
   const [isSubmittingMap, setIsSubmittingMap] = useState<Record<string, boolean>>({});
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
-  const handleSendCode = async () => {
+  const handleLookup = () => {
     if (phone.length < 10) {
       toast.error('올바른 휴대폰 번호를 입력해주세요.');
       return;
     }
-
-    // Bypass for test numbers
-    if (phone === '01000000000') {
-      const testCode = '1234';
-      setCodeState(testCode); // Renamed state to avoid conflict if any, or reuse existing
-      toast.success('테스트 모드: 인증번호 1234');
-      setStep('verify');
-      return;
-    }
-
-    const generatedCode = Math.floor(1000 + Math.random() * 9000).toString();
-    setCodeState(generatedCode); // Need to rename 'code' state to 'generatedCodeState' or similar to store expected code vs input code? 
-    // Wait, UserOrderHistory has 'code' state for INPUT. I need a state for EXPECTED code.
-    // I need to add that state first? Or I can add it in this chunk if I'm clever. 
-    // Actually, I should probably do this in a separate chunk to add the state.
-
-    try {
-      await sendSMS(phone, `[SimpleTicket] 인증번호 [${generatedCode}]를 입력해주세요.`);
-      setStep('verify');
-      toast.success('인증번호가 발송되었습니다.');
-
-      // Start cooldown
-      setCooldown(10);
-      const timer = setInterval(() => {
-        setCooldown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } catch (error) {
-      console.error(error);
-      toast.error('문자 발송 실패');
-    }
-  };
-
-  const handleVerify = async () => {
-    if (code === codeState) { // compare input 'code' with expected 'codeState'
-      toast.success('인증되었습니다.');
-      setVerifiedPhone(phone);
-      setStep('list');
-    } else {
-      toast.error('인증번호가 올바르지 않습니다.');
-    }
+    setVerifiedPhone(phone);
+    setStep('list');
+    toast.success('주문 내역을 조회합니다.');
   };
 
   const handleAddFiles = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,51 +107,26 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
               <MessageCircle size={24} />
             </div>
             <h2 className="text-lg font-bold text-[#191F28] mb-1">
-              {step === 'input' ? '휴대폰 번호를 입력해주세요' : '인증번호를 입력해주세요'}
+              휴대폰 번호를 입력해주세요
             </h2>
             <p className="text-[#8B95A1] text-sm">
-              {step === 'input' ? '주문 시 입력한 번호로 조회합니다.' : `문자로 발송된 인증번호 4자리를 입력해주세요.`}
+              주문 시 입력한 번호로 조회합니다.
             </p>
           </div>
 
           <div className="space-y-4">
-            {step === 'input' ? (
-              <>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#8B95A1] ml-1">휴대폰 번호</label>
-                  <Input
-                    placeholder="01012345678"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                    maxLength={11}
-                  />
-                </div>
-                <Button className="w-full py-4 text-[16px]" onClick={handleSendCode} disabled={cooldown > 0}>
-                  {cooldown > 0 ? `${cooldown}초 후 재요청` : "인증번호 받기"}
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-[#8B95A1] ml-1">인증번호</label>
-                  <Input
-                    placeholder="1234"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
-                    maxLength={4}
-                  />
-                </div>
-                <Button className="w-full py-4 text-[16px]" onClick={handleVerify}>
-                  인증하기
-                </Button>
-                <button
-                  onClick={() => setStep('input')}
-                  className="w-full text-center text-sm text-[#8B95A1] underline mt-2"
-                >
-                  번호 다시 입력하기
-                </button>
-              </>
-            )}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#8B95A1] ml-1">휴대폰 번호</label>
+              <Input
+                placeholder="01012345678"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                maxLength={11}
+              />
+            </div>
+            <Button className="w-full py-4 text-[16px]" onClick={handleLookup}>
+              조회하기
+            </Button>
           </div>
         </Card>
       </div>
@@ -351,10 +282,22 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
           const isSubmitted = submittedStates[order.id];
           const displayStatus = isSubmitted ? '주문 확인중' : order.status;
 
-          // Determine display date
-          const displayDate = order.type === 'reserve' && order.expected_date
-            ? order.expected_date
-            : new Date(order.created_at).toISOString().split('T')[0];
+          // Determine display date and check if arrived
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          let isReservationArrived = false;
+          let displayDate = new Date(order.created_at).toISOString().split('T')[0];
+
+          if (order.type === 'reserve' && order.expected_date) {
+            displayDate = order.expected_date;
+            const [y, m, d] = order.expected_date.split('-').map(Number);
+            const reservedDate = new Date(y, m - 1, d);
+            // Check if today >= reservedDate
+            if (today >= reservedDate) {
+              isReservationArrived = true;
+            }
+          }
 
           return (
             <Card
@@ -418,16 +361,18 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                   )}>
                     <div className={cn(
                       "flex flex-col text-sm font-medium",
-                      isSubmitted ? "text-gray-600" : "text-blue-700"
+                      (isSubmitted || !isReservationArrived) ? "text-gray-600" : "text-blue-700"
                     )}>
                       <span className={cn(
                         "text-[11px] mb-0.5 font-bold",
-                        isSubmitted ? "text-gray-500" : "text-blue-500"
+                        (isSubmitted || !isReservationArrived) ? "text-gray-500" : "text-blue-500"
                       )}>
-                        예약일 도래 ({displayDate})
+                        {isReservationArrived ? `예약일 도래 (${displayDate})` : `예약일 (${displayDate})`}
                       </span>
                       {isSubmitted ? (
                         "상품권 전송이 완료되었습니다."
+                      ) : !isReservationArrived ? (
+                        "예약일이 되면 상품권을 전송할 수 있습니다."
                       ) : (offsetStates[order.id] || order.is_offset)
                         ? `상계 처리된 ${calculateOffsetAmount(order.amount, order.rate).toLocaleString()}원의 상품권을 첨부해주세요`
                         : `매입가만큼 ${order.amount.toLocaleString()}원의 상품권을 첨부해주세요`
@@ -455,7 +400,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                       </div>
                     )}
 
-                    {!isSubmitted ? (
+                    {!isSubmitted && isReservationArrived ? (
                       <div className="flex gap-2">
                         <label
                           className="flex-1 bg-white border border-blue-200 text-blue-600 text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer hover:bg-blue-50 transition-colors shadow-sm"
@@ -485,7 +430,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                           </button>
                         )}
                       </div>
-                    ) : (
+                    ) : isSubmitted ? (
                       <div className="w-full bg-gray-200 text-gray-500 text-xs font-bold py-3 rounded-lg flex items-center justify-center">
                         전송 완료
                       </div>

@@ -45,9 +45,12 @@ export const sendSMS = async (to: string, text: string) => {
         // Use absolute URL for direct call (requires strict CORS handling or proxy)
         // In static deployment, local proxy '/api/solapi' does not exist.
         // We attempt direct call. If CORS fails, a backend proxy is required.
-        const apiUrl = 'https://api.solapi.com/messages/v4/send';
+        // Use proxy path to avoid CORS issues in browser
+        // Local: Vite proxy handles '/api/solapi' -> 'https://api.solapi.com'
+        // Production: Vercel rewrites should handle this
+        const apiUrl = '/api/solapi/messages/v4/send';
 
-        console.log("Sending SMS to:", to, "using Key:", apiKey ? apiKey.slice(0, 4) + '***' : 'MISSING');
+        // console.log("Sending SMS to:", to, "using Key:", apiKey ? apiKey.slice(0, 4) + '***' : 'MISSING');
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -68,13 +71,24 @@ export const sendSMS = async (to: string, text: string) => {
             }),
         });
 
+        // console.log("Response Status:", response.status, response.statusText);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Solapi API Error:', errorData);
-            throw new Error(errorData.message || 'Failed to send SMS');
+            let errorMsg = 'Failed to send SMS';
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.message || JSON.stringify(errorData);
+                console.error('Solapi API Error (JSON):', errorData);
+            } catch (e) {
+                const errorText = await response.text();
+                errorMsg = `API Error (Text): ${errorText}`;
+                console.error('Solapi API Error (Raw):', errorText);
+            }
+            throw new Error(errorMsg);
         }
 
         const result = await response.json();
+        // console.log("Solapi Success Result:", result);
         return result;
     } catch (error) {
         console.error('Send SMS Error:', error);

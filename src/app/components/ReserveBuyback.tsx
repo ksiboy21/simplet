@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader, Input, Button, Card, Checkbox } from './ui/TossComponents';
 import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
 import { AgreementItem } from './ui/AgreementItem';
-import { ChevronRight, ChevronDown, Calculator, AlertCircle, ArrowRight, Plus, X } from 'lucide-react';
+import { Calculator, AlertCircle, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useRates, useTerms, useUserOrders } from '@/lib/useMockData';
@@ -112,7 +112,9 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
       // Send Confirmation SMS
       try {
-        await sendSMS(contact, `안녕하세요, ${name}님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
+        await sendSMS(contact, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.
+검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.
+진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
       } catch (smsError) {
         console.error('Failed to send confirmation SMS:', smsError);
         // Continue flow even if SMS fails

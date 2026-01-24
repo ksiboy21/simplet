@@ -1,0 +1,12 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/solapi/:path*",
+            "destination": "https://api.solapi.com/:path*"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}

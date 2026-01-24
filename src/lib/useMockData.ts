@@ -60,6 +60,7 @@ export const useUserOrders = (phone?: string) => {
 
     try {
       const data = await db.getUserOrders(phone);
+
       setOrders(data);
     } catch (error) {
       console.error('Error fetching user orders:', error);
