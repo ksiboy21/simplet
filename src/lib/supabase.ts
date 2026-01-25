@@ -196,6 +196,28 @@ export const db = {
         return data;
     },
 
+    // Admin Settings
+    async getAdminSetting(key: string) {
+        const { data, error } = await supabase
+            .from('admin_settings')
+            .select('value')
+            .eq('key', key)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error; // Allow not found
+        return data?.value || null;
+    },
+
+    async updateAdminSetting(key: string, value: string) {
+        const { data, error } = await supabase
+            .from('admin_settings')
+            .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
     async uploadImage(file: File) {
         // Compress Image
         const compressedFile = await compressImage(file);

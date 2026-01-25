@@ -81,6 +81,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
+    if (!email) return toast.error("이메일을 입력해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
     if (idCardFiles.length === 0) return toast.error("신분증을 첨부해주세요.");
     if (bankFiles.length === 0) return toast.error("통장사본을 첨부해주세요.");
@@ -330,7 +331,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                     try {
                       const orders = await db.getUserOrders(contact);
                       const duplicate = orders.find(o =>
-                        o.status === '주문 확인중' || o.status === '예약일정 대기중'
+                        (o.status === '주문 확인중' || o.status === '예약일정 대기중') &&
+                        o.type === 'reserve'
                       );
                       if (duplicate) {
                         alert(`이미 진행 중인 주문건이 있습니다.\n(주문번호: #${duplicate.id.slice(0, 8)})`);

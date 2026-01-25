@@ -167,11 +167,12 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
 
   const handleDateUpdate = async () => {
     try {
+      await db.updateAdminSetting('reservation_date', dateInput);
       onDateChange(dateInput);
       toast.success(`예약일이 ${dateInput}로 변경되었습니다.`);
     } catch (error) {
       console.error('Date update failed:', error);
-      toast.error('확인 중 오류가 발생했습니다.');
+      toast.error('변경 중 오류가 발생했습니다.');
     }
   };
 
@@ -346,6 +347,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                 <th className="p-4 pl-6 text-left">주문번호</th>
                 <th className="p-4 text-left">유형</th>
                 <th className="p-4 text-left">상품명</th>
+                <th className="p-4 text-left">예약일</th>
                 <th className="p-4 text-left">신청자</th>
                 <th className="p-4 text-left">연락처</th>
                 <th className="p-4 text-left">금액</th>
@@ -358,7 +360,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
             <tbody className="text-left text-[14px] text-[#333D4B] divide-y divide-gray-50">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={showOffsetColumn ? (showVoucherStatus ? 10 : 9) : 8} className="p-10 text-center text-gray-400">
+                  <td colSpan={showOffsetColumn ? (showVoucherStatus ? 11 : 10) : 9} className="p-10 text-center text-gray-400">
                     주문 내역이 없습니다.
                   </td>
                 </tr>
@@ -373,6 +375,15 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                     </td>
                     <td className="p-4 font-medium text-[#333D4B] text-left">
                       {order.name}
+                    </td>
+                    <td className="p-4 text-left text-gray-600">
+                      {order.expected_date ? (
+                        <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold">
+                          {order.expected_date}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
                     </td>
                     <td className="p-4 text-left">
                       {order.applicant_name || '-'}
