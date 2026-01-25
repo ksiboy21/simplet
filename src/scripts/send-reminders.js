@@ -13,7 +13,7 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 const SOLAPI_API_KEY = process.env.VITE_SOLAPI_API_KEY;
 const SOLAPI_API_SECRET = process.env.VITE_SOLAPI_API_SECRET;
 const SENDER_NUMBER = process.env.VITE_SOLAPI_SENDER_NUMBER;
-const SITE_URL = "https://simpleticket.co.kr"; // Update with actual domain
+const SITE_URL = "https://simpletk.co.kr/"; // Update with actual domain
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
     console.error('Missing environment variables');
