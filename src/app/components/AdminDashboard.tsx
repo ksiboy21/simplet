@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import { Button, Card, Input } from './ui/TossComponents';
-import { Search, Calendar as CalendarIcon, ChevronDown, ExternalLink, BarChart3, ShoppingCart, FileText, Settings, LogOut, Save, ArrowLeft, Download } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, BarChart3, ShoppingCart, FileText, Settings, LogOut, Save, ArrowLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useOrders, useRates, useTerms, Rate } from '@/lib/useMockData';
+import { useOrders, useRates, useTerms, Rate, Order } from '@/lib/useMockData';
 import { Terms } from '@/lib/mockDb';
 import { db } from '@/lib/supabase';
 
@@ -139,6 +139,11 @@ const RateManagement = () => {
 
 const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, onDateChange: (d: string) => void }) => {
   const [dateInput, setDateInput] = useState(currentDate);
+
+  // Sync state with prop
+  useEffect(() => {
+    setDateInput(currentDate);
+  }, [currentDate]);
   const [activeFilter, setActiveFilter] = useState('전체'); // activeFilter is now query param status
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -158,24 +163,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
     search: searchTerm
   });
 
-  const handleDownload = async (url: string, filename: string) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error('Download failed:', error);
-      toast.error('다운로드에 실패했습니다. 이미지를 새 탭에서 엽니다.');
-      window.open(url, '_blank');
-    }
-  };
+
 
   const handleDateUpdate = async () => {
     try {
@@ -192,8 +180,8 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
     }
   };
 
-  const handleStatusChange = (id: number | string, newStatus: string) => {
-    updateOrder(id, { status: newStatus });
+  const handleStatusChange = (id: string, newStatus: string) => {
+    updateOrder(id, { status: newStatus as Order['status'] });
     if (selectedOrder && selectedOrder.id === id) {
       setSelectedOrder({ ...selectedOrder, status: newStatus });
     }

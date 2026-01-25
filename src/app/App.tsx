@@ -20,7 +20,19 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
-  const [adminDate, setAdminDate] = useState('2026-01-30'); // Default date
+  // Initialize from localStorage if available, otherwise default
+  const [adminDate, setAdminDate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('adminDate');
+      if (saved) return saved;
+    }
+    return '2026-01-30';
+  });
+
+  // Persist to localStorage whenever adminDate changes
+  React.useEffect(() => {
+    localStorage.setItem('adminDate', adminDate);
+  }, [adminDate]);
 
   const handleNavigate = (tab: string) => {
     setActiveTab(tab);
