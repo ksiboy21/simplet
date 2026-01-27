@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db, Order, Rate, GetOrdersParams } from './supabase';
+import { db, Order, Rate, GetOrdersParams, TermItem } from './supabase';
 
 // Helper type for Terms object structure used in frontend
 export interface TermsState {
-  reserve: { privacy: string; responsibility: string };
-  instant: { privacy: string; responsibility: string };
-  submission: { privacy: string; responsibility: string };
+  reserve: { privacy: string; privacyTitle: string; responsibility: string; responsibilityTitle: string; items?: TermItem[] };
+  instant: { privacy: string; privacyTitle: string; responsibility: string; responsibilityTitle: string; };
+  submission: { privacy: string; privacyTitle: string; responsibility: string; responsibilityTitle: string; };
 }
 
 export const useOrders = (params: GetOrdersParams = {}) => {
@@ -128,9 +128,9 @@ export const useRates = () => {
 
 export const useTerms = () => {
   const [terms, setTerms] = useState<TermsState>({
-    reserve: { privacy: '', responsibility: '' },
-    instant: { privacy: '', responsibility: '' },
-    submission: { privacy: '', responsibility: '' },
+    reserve: { privacy: '', privacyTitle: '', responsibility: '', responsibilityTitle: '', items: [] },
+    instant: { privacy: '', privacyTitle: '', responsibility: '', responsibilityTitle: '' },
+    submission: { privacy: '', privacyTitle: '', responsibility: '', responsibilityTitle: '' },
   });
   const [loading, setLoading] = useState(true);
 

@@ -1,3 +1,77 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+@media print {
+  body {
+    background: white;
+  }
+
+  body>*:not(.portal-print-root) {
+    display: none !important;
+  }
+
+  /* Portal root becomes the visible container */
+  .portal-print-root {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    overflow: visible !important;
+    height: auto !important;
+    z-index: 9999;
+    background: none !important;
+    /* Remove overlay background */
+  }
+
+  .contract-modal-header {
+    display: none !important;
+  }
+
+  .contract-modal-container {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  #printable-contract {
+    position: relative !important;
+    /* Changed from absolute to flow naturally */
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 20mm !important;
+    /* Add padding to simulate margins since @page margin is 0 */
+    background: white !important;
+    display: block !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  #printable-contract * {
+    visibility: visible !important;
+  }
+
+  /* Ensure backgrounds render */
+  .bg-gray-50 {
+    background-color: #F9FAFB !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+    /* Key change: Removing margin hides browser headers/footers */
+  }
+}

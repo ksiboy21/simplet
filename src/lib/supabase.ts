@@ -53,10 +53,20 @@ export interface Rate {
     active: boolean;
 }
 
+export interface TermItem {
+    id: string;
+    title: string;
+    content: string;
+    required: boolean;
+}
+
 export interface Terms {
     type: string;
     privacy: string;
+    privacy_title: string;
     responsibility: string;
+    responsibility_title: string;
+    items?: TermItem[];
 }
 
 // --- Helper Functions ---
@@ -180,16 +190,27 @@ export const db = {
         data.forEach((t: any) => {
             termsObj[t.type] = {
                 privacy: t.privacy,
-                responsibility: t.responsibility
+                privacyTitle: t.privacy_title,
+                responsibility: t.responsibility,
+                responsibilityTitle: t.responsibility_title,
+                items: t.items || [] // Map the JSONB column
             };
         });
         return termsObj;
     },
 
-    async updateTerms(type: string, updates: { privacy?: string; responsibility?: string }) {
+    async updateTerms(type: string, updates: { privacy?: string; privacyTitle?: string; responsibility?: string; responsibilityTitle?: string; items?: TermItem[] }) {
+        // Map camelCase to snake_case for DB
+        const dbUpdates: any = {};
+        if (updates.privacy !== undefined) dbUpdates.privacy = updates.privacy;
+        if (updates.privacyTitle !== undefined) dbUpdates.privacy_title = updates.privacyTitle;
+        if (updates.responsibility !== undefined) dbUpdates.responsibility = updates.responsibility;
+        if (updates.responsibilityTitle !== undefined) dbUpdates.responsibility_title = updates.responsibilityTitle;
+        if (updates.items !== undefined) dbUpdates.items = updates.items; // New: handle items
+
         const { data, error } = await supabase
             .from('terms')
-            .upsert({ type, ...updates, updated_at: new Date().toISOString() }, { onConflict: 'type' })
+            .upsert({ type, ...dbUpdates, updated_at: new Date().toISOString() }, { onConflict: 'type' })
             .select()
             .single();
         if (error) throw error;

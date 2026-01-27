@@ -122,7 +122,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
               </div>
               <div className="text-left space-y-0.5">
                 <div className="font-bold text-[#191F28] text-[16px]">예약 판매하기</div>
-                <div className="text-[13px] text-[#8B95A1]">선지급50% + 잔금30%</div>
+                <div className="text-[13px] text-[#8B95A1]">판매대금 미리 받고 예약일에 상품권을 전송해요</div>
               </div>
             </div>
             <ChevronRight size={20} className="text-[#D1D6DB] group-hover:text-[#B0B8C1] group-hover:translate-x-1 transition-all" />

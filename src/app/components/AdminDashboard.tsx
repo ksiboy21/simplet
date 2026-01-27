@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import { Button, Card, Input } from './ui/TossComponents';
-import { Search, Calendar as CalendarIcon, BarChart3, ShoppingCart, FileText, Settings, LogOut, Save, ArrowLeft, Download } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, BarChart3, ShoppingCart, FileText, Settings, LogOut, Save, ArrowLeft, Download, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Calendar } from './ui/calendar';
@@ -11,6 +11,7 @@ import { ko } from 'date-fns/locale';
 import { useOrders, useRates, useTerms, Rate, Order } from '@/lib/useMockData';
 import { Terms } from '@/lib/mockDb';
 import { db } from '@/lib/supabase';
+import { ContractModal } from './ContractModal';
 
 interface AdminDashboardProps {
   currentDate: string;
@@ -150,6 +151,8 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
   const LIMIT = 10;
 
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const { terms } = useTerms();
 
   // Reset page when filter changes
   useEffect(() => {
@@ -269,8 +272,8 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
 
   const filterTabs = ['전체', '주문 확인중', '예약일정 대기중', '완료', '반려'];
 
-  const showOffsetColumn = ['예약일정 대기중', '완료', '반려'].includes(activeFilter);
   const showVoucherStatus = activeFilter === '예약일정 대기중';
+
   const totalPages = Math.ceil(totalCount / LIMIT);
 
   return (
@@ -351,7 +354,6 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                 <th className="p-4 text-left">신청자</th>
                 <th className="p-4 text-left">연락처</th>
                 <th className="p-4 text-left">금액</th>
-                {showOffsetColumn && <th className="p-4 text-left">상계여부</th>}
                 {showVoucherStatus && <th className="p-4 text-left">상품권등록</th>}
                 <th className="p-4 text-left">상태</th>
                 <th className="p-4 pr-6 text-left">관리</th>
@@ -360,7 +362,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
             <tbody className="text-left text-[14px] text-[#333D4B] divide-y divide-gray-50">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={showOffsetColumn ? (showVoucherStatus ? 11 : 10) : 9} className="p-10 text-center text-gray-400">
+                  <td colSpan={showVoucherStatus ? 10 : 9} className="p-10 text-center text-gray-400">
                     주문 내역이 없습니다.
                   </td>
                 </tr>
@@ -391,15 +393,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                     </td>
                     <td className="p-4 text-gray-500 text-[13px] text-left">{order.phone || '-'}</td>
                     <td className="p-4 font-bold text-left">{order.amount.toLocaleString()}원</td>
-                    {showOffsetColumn && (
-                      <td className="p-4 text-left">
-                        {order.is_offset ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-red-600 bg-red-50 text-[11px] font-bold border border-red-100 whitespace-nowrap">상계신청</span>
-                        ) : (
-                          <span className="text-gray-300 text-xs">-</span>
-                        )}
-                      </td>
-                    )}
+
                     {showVoucherStatus && (
                       <td className="p-4 text-left">
                         <span className={cn(
@@ -576,14 +570,8 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                       <span className="text-sm font-bold text-[#333D4B]">{selectedOrder.expected_date || '-'}</span>
                     </div>
                     <div className="bg-[#F9FAFB] p-4 rounded-xl">
-                      <span className="text-xs text-[#8B95A1] block mb-1">계약금 (선지급)</span>
+                      <span className="text-xs text-[#8B95A1] block mb-1">물품대금지급 ({selectedOrder.rate || 0}%)</span>
                       <span className="text-sm font-bold text-[#0064FF]">{selectedOrder.deposit?.toLocaleString() || 0}원</span>
-                    </div>
-                    <div className="bg-[#F9FAFB] p-4 rounded-xl col-span-2">
-                      <span className="text-xs text-[#8B95A1] block mb-1">상계 처리 여부</span>
-                      <span className={cn("text-sm font-bold", selectedOrder.is_offset ? "text-red-500" : "text-gray-500")}>
-                        {selectedOrder.is_offset ? "상계 신청됨" : "미신청"}
-                      </span>
                     </div>
                   </div>
                 </section>
@@ -675,11 +663,36 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
               </section>
             </div>
 
-            <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end">
+            <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-between items-center">
+              <div className="flex gap-2">
+                {selectedOrder.type === 'reserve' && (
+                  <Button
+                    onClick={() => setShowContractModal(true)}
+                    className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <FileText size={16} /> 계약서 보기
+                  </Button>
+                )}
+              </div>
               <Button onClick={() => setSelectedOrder(null)} className="bg-[#333D4B]">닫기</Button>
             </div>
           </div>
         </div>
+      )}
+
+      {showContractModal && selectedOrder && (
+        <ContractModal
+          order={selectedOrder}
+          terms={
+            // Pass the current dynamic terms
+            terms || {
+              reserve: { privacy: '', privacyTitle: '', responsibility: '', responsibilityTitle: '', items: [] },
+              instant: { privacy: '', privacyTitle: '', responsibility: '', responsibilityTitle: '' },
+              submission: { privacy: '', privacyTitle: '', responsibility: '', responsibilityTitle: '' }
+            }
+          }
+          onClose={() => setShowContractModal(false)}
+        />
       )}
     </div>
   );
@@ -702,13 +715,54 @@ const TermsManagement = () => {
     }
   };
 
-  const updateSection = (section: keyof Terms, key: 'privacy' | 'responsibility', value: string) => {
+  const updateSection = (section: keyof Terms, key: string, value: string) => {
     if (!localTerms) return;
     setLocalTerms({
       ...localTerms,
       [section]: {
         ...localTerms[section],
         [key]: value
+      }
+    });
+  };
+
+  const addReserveItem = () => {
+    if (!localTerms) return;
+    const newItem = {
+      id: `term_${Date.now()}`,
+      title: '',
+      content: '',
+      required: true
+    };
+    setLocalTerms({
+      ...localTerms,
+      reserve: {
+        ...localTerms.reserve,
+        items: [...(localTerms.reserve.items || []), newItem]
+      }
+    });
+  };
+
+  const removeReserveItem = (id: string) => {
+    if (!localTerms) return;
+    setLocalTerms({
+      ...localTerms,
+      reserve: {
+        ...localTerms.reserve,
+        items: (localTerms.reserve.items || []).filter(item => item.id !== id)
+      }
+    });
+  };
+
+  const updateReserveItem = (id: string, key: 'title' | 'content', value: string) => {
+    if (!localTerms) return;
+    setLocalTerms({
+      ...localTerms,
+      reserve: {
+        ...localTerms.reserve,
+        items: (localTerms.reserve.items || []).map(item =>
+          item.id === id ? { ...item, [key]: value } : item
+        )
       }
     });
   };
@@ -728,30 +782,39 @@ const TermsManagement = () => {
       </div>
 
       <div className="space-y-12">
-        {/* Reserve */}
+        {/* Reserve (Dynamic) */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-[#333D4B] border-l-4 border-[#0064FF] pl-3">예약 판매</h3>
+          <div className="flex justify-between items-center border-l-4 border-[#0064FF] pl-3">
+            <h3 className="text-lg font-bold text-[#333D4B]">예약 판매</h3>
+            <Button onClick={addReserveItem} className="flex items-center gap-1 text-[#0064FF] border border-[#0064FF] bg-white hover:bg-[#E8F3FF] h-9 px-3 text-sm rounded-lg">
+              <Plus size={14} /> 약관 추가
+            </Button>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6 bg-white border-none shadow-sm space-y-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-[#191F28] text-[15px]">개인정보 수집 및 이용 동의</h4>
-              </div>
-              <textarea
-                className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
-                value={localTerms.reserve.privacy}
-                onChange={(e) => updateSection('reserve', 'privacy', e.target.value)}
-              />
-            </Card>
-            <Card className="p-6 bg-white border-none shadow-sm space-y-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-[#191F28] text-[15px]">민형사상 책임 및 거래 약관 동의</h4>
-              </div>
-              <textarea
-                className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
-                value={localTerms.reserve.responsibility}
-                onChange={(e) => updateSection('reserve', 'responsibility', e.target.value)}
-              />
-            </Card>
+            {localTerms.reserve.items?.map((item) => (
+              <Card key={item.id} className="p-6 bg-white border-none shadow-sm space-y-4 relative group">
+                <div className="flex justify-between items-center mb-2">
+                  <Input
+                    className="font-bold text-[#191F28] text-[15px] border-none bg-transparent hover:bg-gray-50 focus:bg-white px-0"
+                    value={item.title}
+                    onChange={(e) => updateReserveItem(item.id, 'title', e.target.value)}
+                    placeholder="제목을 입력하세요"
+                  />
+                  <button
+                    onClick={() => removeReserveItem(item.id)}
+                    className="p-1 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    title="삭제"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <textarea
+                  className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
+                  value={item.content}
+                  onChange={(e) => updateReserveItem(item.id, 'content', e.target.value)}
+                />
+              </Card>
+            ))}
           </div>
         </div>
 
@@ -761,22 +824,32 @@ const TermsManagement = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="p-6 bg-white border-none shadow-sm space-y-4">
               <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-[#191F28] text-[15px]">개인정보 수집 및 이용 동의</h4>
-              </div>
-              <textarea
-                className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
-                value={localTerms.instant.privacy}
-                onChange={(e) => updateSection('instant', 'privacy', e.target.value)}
-              />
-            </Card>
-            <Card className="p-6 bg-white border-none shadow-sm space-y-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-[#191F28] text-[15px]">민형사상 책임 및 거래 약관 동의</h4>
+                <Input
+                  className="font-bold text-[#191F28] text-[15px] border-none bg-transparent hover:bg-gray-50 focus:bg-white px-0"
+                  value={localTerms.instant.responsibilityTitle}
+                  onChange={(e) => updateSection('instant', 'responsibilityTitle', e.target.value)}
+                  placeholder="제목을 입력하세요"
+                />
               </div>
               <textarea
                 className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
                 value={localTerms.instant.responsibility}
                 onChange={(e) => updateSection('instant', 'responsibility', e.target.value)}
+              />
+            </Card>
+            <Card className="p-6 bg-white border-none shadow-sm space-y-4">
+              <div className="flex justify-between items-center mb-2">
+                <Input
+                  className="font-bold text-[#191F28] text-[15px] border-none bg-transparent hover:bg-gray-50 focus:bg-white px-0"
+                  value={localTerms.instant.privacyTitle}
+                  onChange={(e) => updateSection('instant', 'privacyTitle', e.target.value)}
+                  placeholder="제목을 입력하세요"
+                />
+              </div>
+              <textarea
+                className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
+                value={localTerms.instant.privacy}
+                onChange={(e) => updateSection('instant', 'privacy', e.target.value)}
               />
             </Card>
           </div>
@@ -788,22 +861,32 @@ const TermsManagement = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="p-6 bg-white border-none shadow-sm space-y-4">
               <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-[#191F28] text-[15px]">개인정보 수집 및 이용 동의</h4>
-              </div>
-              <textarea
-                className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
-                value={localTerms.submission.privacy}
-                onChange={(e) => updateSection('submission', 'privacy', e.target.value)}
-              />
-            </Card>
-            <Card className="p-6 bg-white border-none shadow-sm space-y-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-[#191F28] text-[15px]">민형사상 책임 및 거래 약관 동의</h4>
+                <Input
+                  className="font-bold text-[#191F28] text-[15px] border-none bg-transparent hover:bg-gray-50 focus:bg-white px-0"
+                  value={localTerms.submission.responsibilityTitle}
+                  onChange={(e) => updateSection('submission', 'responsibilityTitle', e.target.value)}
+                  placeholder="제목을 입력하세요"
+                />
               </div>
               <textarea
                 className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
                 value={localTerms.submission.responsibility}
                 onChange={(e) => updateSection('submission', 'responsibility', e.target.value)}
+              />
+            </Card>
+            <Card className="p-6 bg-white border-none shadow-sm space-y-4">
+              <div className="flex justify-between items-center mb-2">
+                <Input
+                  className="font-bold text-[#191F28] text-[15px] border-none bg-transparent hover:bg-gray-50 focus:bg-white px-0"
+                  value={localTerms.submission.privacyTitle}
+                  onChange={(e) => updateSection('submission', 'privacyTitle', e.target.value)}
+                  placeholder="제목을 입력하세요"
+                />
+              </div>
+              <textarea
+                className="w-full h-[300px] p-4 rounded-xl bg-[#F9FAFB] border border-gray-200 text-sm leading-relaxed outline-none focus:border-[#0064FF] transition-colors resize-none"
+                value={localTerms.submission.privacy}
+                onChange={(e) => updateSection('submission', 'privacy', e.target.value)}
               />
             </Card>
           </div>

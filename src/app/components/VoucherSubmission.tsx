@@ -177,13 +177,13 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
 
         <Card className="bg-[#F9FAFB] border-none p-5 space-y-4">
           <AgreementItem
-            title="민형사상 책임 및 거래 약관 동의"
+            title={terms?.submission?.responsibilityTitle || "민형사상 책임 및 거래 약관 동의"}
             checked={agreed}
             onChange={setAgreed}
             content={terms?.submission?.responsibility}
           />
           <AgreementItem
-            title="개인정보 수집 및 이용 동의"
+            title={terms?.submission?.privacyTitle || "개인정보 수집 및 이용 동의"}
             checked={agreedPrivacy}
             onChange={setAgreedPrivacy}
             content={terms?.submission?.privacy}

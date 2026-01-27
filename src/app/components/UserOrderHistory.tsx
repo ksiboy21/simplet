@@ -19,7 +19,6 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
   const [step, setStep] = useState<'input' | 'list'>('input');
 
   // Unused logic removed: code, cooldown, sendSMS
-  const [offsetStates, setOffsetStates] = useState<Record<string, boolean>>({});
   const [filesMap, setFilesMap] = useState<Record<string, File[]>>({});
   const [submittedStates, setSubmittedStates] = useState<Record<string, boolean>>({});
   const [isSubmittingMap, setIsSubmittingMap] = useState<Record<string, boolean>>({});
@@ -77,14 +76,6 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
         setIsSubmittingMap(prev => ({ ...prev, [id]: false }));
       }
     }
-  };
-
-  const toggleOffset = (id: string) => {
-    setOffsetStates(prev => {
-      const newState = { ...prev, [id]: !prev[id] };
-      toast.success(newState[id] ? '상계 요청이 선택되었습니다.' : '상계 요청이 취소되었습니다.');
-      return newState;
-    });
   };
 
   const calculateOffsetAmount = (amount: number, rate: number = 80) => {
@@ -337,24 +328,6 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
 
               {order.type === 'reserve' && order.status === '예약일정 대기중' && (
                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                  {!isSubmitted && (
-                    <div className="flex justify-end h-8">
-                      {!offsetStates[order.id] && !order.is_offset && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm("상계요청 시 되돌릴 수 없습니다.\n그래도 진행하시겠습니까?")) {
-                              toggleOffset(order.id);
-                            }
-                          }}
-                          className="text-[11px] font-bold px-2 py-1 rounded border transition-colors bg-gray-50 text-[#4E5968] border-gray-200 hover:bg-gray-100"
-                        >
-                          상계요청
-                        </button>
-                      )}
-                    </div>
-                  )}
-
                   <div className={cn(
                     "bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4",
                     isSubmitted && "bg-gray-50 border-gray-200"
@@ -373,7 +346,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                         "상품권 전송이 완료되었습니다."
                       ) : !isReservationArrived ? (
                         "예약일이 되면 상품권을 전송할 수 있습니다."
-                      ) : (offsetStates[order.id] || order.is_offset)
+                      ) : order.is_offset
                         ? `상계 처리된 ${calculateOffsetAmount(order.amount, order.rate).toLocaleString()}원의 상품권을 첨부해주세요`
                         : `매입가만큼 ${order.amount.toLocaleString()}원의 상품권을 첨부해주세요`
                       }

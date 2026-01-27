@@ -57,7 +57,9 @@ CREATE TABLE rates (
 CREATE TABLE terms (
   type VARCHAR(20) PRIMARY KEY,                  -- types: 'instant', 'reserve', 'submission'
   privacy TEXT NOT NULL,                         -- 개인정보 수집 및 이용 동의
+  privacy_title TEXT DEFAULT '개인정보 수집 및 이용 동의',
   responsibility TEXT NOT NULL,                  -- 책임 동의
+  responsibility_title TEXT DEFAULT '민형사상 책임 및 거래 약관 동의',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -76,10 +78,10 @@ INSERT INTO rates (type, name, rate) VALUES
 -- =============================================
 -- 초기 데이터 (Terms)
 -- =============================================
-INSERT INTO terms (type, privacy, responsibility) VALUES
-  ('reserve', '예약 판매 서비스 이용을 위한 개인정보 수집 및 이용 동의 내용입니다.', '정해진 예약일에 상품권 전송이 되지 않을시 민형사상의 모든 절차에 동의합니다'),
-  ('instant', '즉시 판매 서비스 이용을 위한 개인정보 수집 및 이용 동의 내용입니다.', '이미 사용된 상품권 또는 장물이나 보이스피싱등 불법자금과 연루된 경우 모든 법적책임은 판매자에게 있습니다'),
-  ('submission', '상품권 제출 서비스 이용을 위한 개인정보 수집 및 이용 동의 내용입니다.', '제출된 상품권에 문제가 있을 시 모든 책임은 본인에게 있습니다.');
+INSERT INTO terms (type, privacy, privacy_title, responsibility, responsibility_title) VALUES
+  ('reserve', '예약 판매 서비스 이용을 위한 개인정보 수집 및 이용 동의 내용입니다.', '개인정보 수집 및 이용 동의', '정해진 예약일에 상품권 전송이 되지 않을시 민형사상의 모든 절차에 동의합니다', '민형사상 책임 및 거래 약관 동의'),
+  ('instant', '즉시 판매 서비스 이용을 위한 개인정보 수집 및 이용 동의 내용입니다.', '개인정보 수집 및 이용 동의', '이미 사용된 상품권 또는 장물이나 보이스피싱등 불법자금과 연루된 경우 모든 법적책임은 판매자에게 있습니다', '민형사상 책임 및 거래 약관 동의'),
+  ('submission', '상품권 제출 서비스 이용을 위한 개인정보 수집 및 이용 동의 내용입니다.', '개인정보 수집 및 이용 동의', '제출된 상품권에 문제가 있을 시 모든 책임은 본인에게 있습니다.', '민형사상 책임 및 거래 약관 동의');
 
 -- =============================================
 -- Row Level Security (RLS) & Policies
