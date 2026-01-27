@@ -41,8 +41,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
   // Dynamic Terms State
   const [checkedTerms, setCheckedTerms] = useState<Record<string, { checked: boolean; agreedAt: string }>>({});
-  const [selectedTerm, setSelectedTerm] = useState<any>(null);
-  const [isTermModalOpen, setIsTermModalOpen] = useState(false);
 
   const toggleTerm = (id: string, checked: boolean) => {
     setCheckedTerms(prev => ({
@@ -268,7 +266,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                 defaultValue=""
               >
                 <option value="" disabled>금액을 선택해주세요</option>
-                {[40, 50, 60, 70, 80, 90, 100].map(val => (
+                {[20, 30, 40, 50, 60, 70, 80, 90, 100].map(val => (
                   <option key={val} value={val * 10000}>{val}만원</option>
                 ))}
               </select>
@@ -363,29 +361,21 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
             {/* Final Agreements */}
             <Card className="bg-[#F9FAFB] border-none p-6 rounded-[24px] space-y-4">
+              <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mb-4">
+                <p className="text-xs text-orange-600 font-bold break-keep">
+                  ⚠ 유의사항: 아래 동의 약관 내용을 반드시 꼼꼼히 읽어보신 후 체크하여 주시기 바랍니다.
+                </p>
+              </div>
+
               {terms?.reserve?.items && terms.reserve.items.length > 0 ? (
                 terms.reserve.items.map((item) => (
-                  <div key={item.id}>
-                    <div className="flex items-start gap-2">
-                      <input
-                        type="checkbox"
-                        id={`term-${item.id}`}
-                        checked={checkedTerms[item.id]?.checked || false}
-                        onChange={(e) => toggleTerm(item.id, e.target.checked)}
-                        className="mt-1 w-4 h-4 rounded border-gray-300 text-[#0064FF] focus:ring-[#0064FF]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedTerm(item);
-                          setIsTermModalOpen(true);
-                        }}
-                        className="text-[13px] text-[#4E5968] text-left hover:underline"
-                      >
-                        [{item.required ? '필수' : '선택'}] {item.title}
-                      </button>
-                    </div>
-                  </div>
+                  <AgreementItem
+                    key={item.id}
+                    title={`[${item.required ? '필수' : '선택'}] ${item.title}`}
+                    checked={checkedTerms[item.id]?.checked || false}
+                    onChange={(checked) => toggleTerm(item.id, checked)}
+                    content={item.content}
+                  />
                 ))
               ) : (
                 // Fallback
@@ -412,25 +402,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               </Button>
             </div>
           </form>
-          {/* Term Detail Modal */}
-          {isTermModalOpen && selectedTerm && (
-            <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-              <div className="bg-white w-full max-w-sm rounded-[24px] p-6 space-y-4 animate-in fade-in zoom-in-95">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-lg">{selectedTerm.title}</h3>
-                  <button onClick={() => setIsTermModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                    <X size={20} />
-                  </button>
-                </div>
-                <div className="max-h-[60vh] overflow-y-auto text-sm text-gray-600 bg-gray-50 p-4 rounded-xl whitespace-pre-wrap">
-                  {selectedTerm.content}
-                </div>
-                <Button onClick={() => setIsTermModalOpen(false)} className="w-full h-12 rounded-[16px] bg-[#0064FF] text-white font-bold">
-                  확인
-                </Button>
-              </div>
-            </div>
-          )}
         </motion.div>
       </AnimatePresence>
     </div>
