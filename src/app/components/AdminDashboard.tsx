@@ -159,12 +159,20 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
     setPage(1);
   }, [activeFilter, searchTerm]);
 
-  const { orders, totalCount, updateOrder } = useOrders({
+  const { orders, totalCount, updateOrder, deleteOrder } = useOrders({
     page,
     limit: LIMIT,
     status: activeFilter,
     search: searchTerm
   });
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('정말 이 주문을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) {
+      await deleteOrder(id);
+      setSelectedOrder(null);
+      toast.success('주문이 삭제되었습니다.');
+    }
+  };
 
 
 
@@ -484,6 +492,13 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                     </option>
                   ))}
                 </select>
+                <button
+                  onClick={() => handleDelete(selectedOrder.id)}
+                  className="p-2 hover:bg-red-50 text-red-500 rounded-full transition-colors mr-2"
+                  title="주문 삭제"
+                >
+                  <Trash2 size={20} />
+                </button>
                 <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                   <LogOut size={20} className="rotate-180" />
                 </button>

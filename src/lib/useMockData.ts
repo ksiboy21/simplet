@@ -44,7 +44,18 @@ export const useOrders = (params: GetOrdersParams = {}) => {
     }
   };
 
-  return { orders, totalCount, updateOrder, loading, refetch: fetchOrders };
+  const deleteOrder = async (id: string) => {
+    try {
+      await db.deleteOrder(id);
+      await fetchOrders();
+      toastError('주문이 삭제되었습니다.'); // Assuming toastError logs to console, but we might want real toast
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toastError('주문 삭제 실패');
+    }
+  };
+
+  return { orders, totalCount, updateOrder, deleteOrder, loading, refetch: fetchOrders };
 };
 
 export const useUserOrders = (phone?: string) => {

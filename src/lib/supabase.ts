@@ -152,6 +152,15 @@ export const db = {
         return data as Order;
     },
 
+    async deleteOrder(id: string) {
+        const { error } = await supabase
+            .from('orders')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
     async hasActiveReservations() {
         const { count, error } = await supabase
             .from('orders')
