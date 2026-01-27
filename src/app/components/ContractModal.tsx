@@ -97,17 +97,23 @@ export const ContractModal = ({ order, terms, onClose }: ContractModalProps) => 
                                 {/* Fixed Terms if legacy, but relying on terms passed */}
                                 <div className="space-y-4">
                                     {/* Render dynamic items if they exist */}
-                                    {terms?.reserve?.items?.map((item, idx) => (
-                                        <div key={item.id} className="text-sm">
-                                            <h4 className="font-bold text-gray-800 mb-1">[{idx + 1}] {item.title}</h4>
-                                            <div className="text-gray-600 bg-gray-50 p-3 rounded-lg text-xs leading-relaxed whitespace-pre-wrap">
-                                                {item.content}
+                                    {terms?.reserve?.items?.map((item, idx) => {
+                                        // Find specific agreement for this item
+                                        const agreement = order.term_agreements?.find(t => t.id === item.id);
+                                        const agreedAt = agreement?.agreedAt || order.created_at;
+
+                                        return (
+                                            <div key={item.id} className="text-sm">
+                                                <h4 className="font-bold text-gray-800 mb-1">[{idx + 1}] {item.title}</h4>
+                                                <div className="text-gray-600 bg-gray-50 p-3 rounded-lg text-xs leading-relaxed whitespace-pre-wrap">
+                                                    {item.content}
+                                                </div>
+                                                <div className="mt-1 text-right text-xs text-[#0064FF] font-semibold">
+                                                    ✓ 동의함 ({format(new Date(agreedAt), 'yyyy-MM-dd HH:mm')})
+                                                </div>
                                             </div>
-                                            <div className="mt-1 text-right text-xs text-[#0064FF] font-semibold">
-                                                ✓ 동의함 ({format(new Date(order.created_at), 'yyyy-MM-dd')})
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
 
                                     {/* Fallback for legacy static terms if items empty */}
                                     {(!terms?.reserve?.items || terms.reserve.items.length === 0) && (

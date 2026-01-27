@@ -38,6 +38,9 @@ export interface Order {
     id_card_image?: string;
     bank_book_image?: string;
 
+    // Agreements
+    term_agreements?: { id: string; title: string; agreedAt: string }[];
+
     created_at: string;
     updated_at: string;
 

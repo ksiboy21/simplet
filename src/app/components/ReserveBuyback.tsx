@@ -40,15 +40,25 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dynamic Terms State
-  const [checkedTerms, setCheckedTerms] = useState<Record<string, boolean>>({});
+  const [checkedTerms, setCheckedTerms] = useState<Record<string, { checked: boolean; agreedAt: string }>>({});
+  const [selectedTerm, setSelectedTerm] = useState<any>(null);
+  const [isTermModalOpen, setIsTermModalOpen] = useState(false);
 
   const toggleTerm = (id: string, checked: boolean) => {
-    setCheckedTerms(prev => ({ ...prev, [id]: checked }));
+    setCheckedTerms(prev => ({
+      ...prev,
+      [id]: {
+        checked,
+        // If checking, record current time. If unchecking, keep old time or reset? Better to reset or update.
+        // Requirement: "Show time of LAST agreement".
+        agreedAt: checked ? new Date().toISOString() : (prev[id]?.agreedAt || new Date().toISOString())
+      }
+    }));
   };
 
   const areAllTermsChecked = () => {
     if (terms?.reserve?.items && terms.reserve.items.length > 0) {
-      return terms.reserve.items.every(item => !item.required || checkedTerms[item.id]);
+      return terms.reserve.items.every(item => !item.required || checkedTerms[item.id]?.checked);
     }
     return agreedFinal && agreedPrivacy;
   };
@@ -100,6 +110,13 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       const idCardUrl = idCardFiles.length > 0 ? await db.uploadImage(idCardFiles[0]) : '';
       const bankBookUrl = bankFiles.length > 0 ? await db.uploadImage(bankFiles[0]) : '';
 
+      // Construct term agreements
+      const termAgreements = terms?.reserve?.items?.map(item => ({
+        id: item.id,
+        title: item.title,
+        agreedAt: checkedTerms[item.id]?.agreedAt || new Date().toISOString()
+      })).filter(t => checkedTerms[t.id]?.checked) || [];
+
       await addOrder({
         name: voucherType === 'lotte' ? '롯데 모바일' : '신세계 이마트전용',
         amount: faceValue,
@@ -115,7 +132,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         rate: RATE_PERCENT,
         id_card_image: idCardUrl,
         bank_book_image: bankBookUrl,
-        is_my_order: true
+        is_my_order: true,
+        term_agreements: termAgreements
       });
 
       // Send Confirmation SMS
@@ -346,14 +364,28 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
             {/* Final Agreements */}
             <Card className="bg-[#F9FAFB] border-none p-6 rounded-[24px] space-y-4">
               {terms?.reserve?.items && terms.reserve.items.length > 0 ? (
-                terms.reserve.items.map((term) => (
-                  <AgreementItem
-                    key={term.id}
-                    title={term.title}
-                    checked={!!checkedTerms[term.id]}
-                    onChange={(checked) => toggleTerm(term.id, checked)}
-                    content={term.content}
-                  />
+                terms.reserve.items.map((item) => (
+                  <div key={item.id}>
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        id={`term-${item.id}`}
+                        checked={checkedTerms[item.id]?.checked || false}
+                        onChange={(e) => toggleTerm(item.id, e.target.checked)}
+                        className="mt-1 w-4 h-4 rounded border-gray-300 text-[#0064FF] focus:ring-[#0064FF]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTerm(item);
+                          setIsTermModalOpen(true);
+                        }}
+                        className="text-[13px] text-[#4E5968] text-left hover:underline"
+                      >
+                        [{item.required ? '필수' : '선택'}] {item.title}
+                      </button>
+                    </div>
+                  </div>
                 ))
               ) : (
                 // Fallback
@@ -380,6 +412,25 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               </Button>
             </div>
           </form>
+          {/* Term Detail Modal */}
+          {isTermModalOpen && selectedTerm && (
+            <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-sm rounded-[24px] p-6 space-y-4 animate-in fade-in zoom-in-95">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-lg">{selectedTerm.title}</h3>
+                  <button onClick={() => setIsTermModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto text-sm text-gray-600 bg-gray-50 p-4 rounded-xl whitespace-pre-wrap">
+                  {selectedTerm.content}
+                </div>
+                <Button onClick={() => setIsTermModalOpen(false)} className="w-full h-12 rounded-[16px] bg-[#0064FF] text-white font-bold">
+                  확인
+                </Button>
+              </div>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
