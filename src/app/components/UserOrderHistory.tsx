@@ -334,21 +334,19 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                   )}>
                     <div className={cn(
                       "flex flex-col text-sm font-medium",
-                      (isSubmitted || !isReservationArrived) ? "text-gray-600" : "text-blue-700"
+                      (isSubmitted) ? "text-gray-600" : "text-blue-700"
                     )}>
                       <span className={cn(
                         "text-[11px] mb-0.5 font-bold",
-                        (isSubmitted || !isReservationArrived) ? "text-gray-500" : "text-blue-500"
+                        (isSubmitted) ? "text-gray-500" : "text-blue-500"
                       )}>
                         {isReservationArrived ? `예약일 도래 (${displayDate})` : `예약일 (${displayDate})`}
                       </span>
                       {isSubmitted ? (
                         "상품권 전송이 완료되었습니다."
-                      ) : !isReservationArrived ? (
-                        "예약일이 되면 상품권을 전송할 수 있습니다."
                       ) : order.is_offset
                         ? `상계 처리된 ${calculateOffsetAmount(order.amount, order.rate).toLocaleString()}원의 상품권을 첨부해주세요`
-                        : `매입가만큼 ${order.amount.toLocaleString()}원의 상품권을 첨부해주세요`
+                        : `판매하신 ${order.amount.toLocaleString()}원의 상품권을 첨부해주세요`
                       }
                     </div>
 
@@ -373,7 +371,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                       </div>
                     )}
 
-                    {!isSubmitted && isReservationArrived ? (
+                    {!isSubmitted ? (
                       <div className="flex gap-2">
                         <label
                           className="flex-1 bg-white border border-blue-200 text-blue-600 text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer hover:bg-blue-50 transition-colors shadow-sm"

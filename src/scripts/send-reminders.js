@@ -134,6 +134,8 @@ async function main() {
         const diffTime = reserveDate.getTime() - today.getTime();
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
+        console.log(`[DEBUG] Order: ${order.name}, Expected: ${order.expected_date}, Today(KST-00:00): ${today.toISOString()}, DiffDays: ${diffDays}`);
+
         let message = '';
 
         if (diffDays === 1) {
