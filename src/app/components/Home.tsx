@@ -165,7 +165,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
             */}
             <div className="flex items-center gap-2 text-[#596574] text-[15px]">
               <img src={kakaoIcon} alt="Kakao" className="w-7 h-7 object-contain" />
-              <img src={kakaoQr} alt="KakaoQr" />
+              <img src={kakaoQr} alt="KakaoQr" className="w-[16%] h-auto" />
               {/*<span className="font-medium">카톡 </span>*/}
             </div>
           </div>
