@@ -94,7 +94,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
-    if (!email) return toast.error("이메일을 입력해주세요.");
+    //if (!email) return toast.error("이메일을 입력해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
     //if (idCardFiles.length === 0) return toast.error("신분증을 첨부해주세요.");
     //if (bankFiles.length === 0) return toast.error("통장사본을 첨부해주세요.");
@@ -298,6 +298,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
             </div>
 
             {/* Uploads */}
+            {/*
             <Card className="space-y-4">
               <Input
                 label="이메일(전자계약서 수신용)"
@@ -306,8 +307,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                 placeholder="example@toss.im"
                 type="email"
                 className="bg-white text-black"
-              />
-               {/*
+              />               
               <div className="flex gap-3">
                 <div className="flex-1 min-w-0 space-y-2">
                   <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신분증 이미지</label>
@@ -360,10 +360,10 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                     )}
                   </div>
                 </div>
-              </div>
-              */}
+              </div>            
             </Card>
-
+            */}
+            
             {/* Final Agreements */}
             <Card className="bg-[#F9FAFB] border-none p-6 rounded-[24px] space-y-4">
               <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mb-4">
