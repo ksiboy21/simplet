@@ -125,6 +125,7 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
         </div>
 
         <Card className="space-y-4">
+          {/*
           <div className="flex gap-2">
             <div className="w-[30%]">
               <Input
@@ -141,8 +142,9 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
               />
             </div>
           </div>
+          */}
           <Input
-            placeholder="예금주"
+            placeholder="성함"
             value={applicantName}
             onChange={(e) => setApplicantName(e.target.value)}
           />
@@ -151,6 +153,7 @@ export const VoucherSubmission = ({ onSuccess }: VoucherSubmissionProps) => {
             onChange={setPhoneNumber}
             onVerifiedChange={setIsPhoneVerified}
           />
+          <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 카카오톡을 통해 문의주세요</label>
         </Card>
 
         <div className="space-y-2">
