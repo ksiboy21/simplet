@@ -96,9 +96,9 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     if (!contact) return toast.error("연락처를 입력해주세요.");
     if (!email) return toast.error("이메일을 입력해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
-    if (idCardFiles.length === 0) return toast.error("신분증을 첨부해주세요.");
-    if (bankFiles.length === 0) return toast.error("통장사본을 첨부해주세요.");
-    if (!bankName || !accountNumber) return toast.error("계좌 정보를 입력해주세요.");
+    //if (idCardFiles.length === 0) return toast.error("신분증을 첨부해주세요.");
+    //if (bankFiles.length === 0) return toast.error("통장사본을 첨부해주세요.");
+    //if (!bankName || !accountNumber) return toast.error("계좌 정보를 입력해주세요.");
 
 
     if (!areAllTermsChecked()) return toast.error("모든 필수 약관에 동의해주세요.");
@@ -213,6 +213,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                 onChange={(e) => setName(e.target.value)}
                 placeholder="성함을 입력해주세요"
               />
+              {/*
               <div className="flex gap-2">
                 <div className="w-[30%]">
                   <Input
@@ -231,6 +232,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   />
                 </div>
               </div>
+              */}
               <PhoneVerificationInput
                 label="연락처"
                 value={contact}
@@ -255,6 +257,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   }
                 }}
               />
+              <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 카카오톡을 통해 문의주세요</label>
             </Card>
 
             {/* Amount Selection */}
@@ -304,6 +307,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                 type="email"
                 className="bg-white text-black"
               />
+               {/*
               <div className="flex gap-3">
                 <div className="flex-1 min-w-0 space-y-2">
                   <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신분증 이미지</label>
@@ -357,6 +361,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   </div>
                 </div>
               </div>
+              */}
             </Card>
 
             {/* Final Agreements */}
