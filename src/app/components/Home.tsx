@@ -4,6 +4,7 @@ import { ChevronRight, Settings, Zap, CalendarClock, Send, TrendingUp, Phone } f
 import { useRates } from '@/lib/useMockData';
 import kakaoIcon from '@/assets/Frame 2.png';
 import lineIcon from '@/assets/Frame 1.png';
+import kakaoQr from '@/assets/kakao.webp';
 
 interface HomeProps {
   onNavigate: (tab: string) => void;
@@ -164,6 +165,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
             */}
             <div className="flex items-center gap-2 text-[#596574] text-[15px]">
               <img src={kakaoIcon} alt="Kakao" className="w-7 h-7 object-contain" />
+              <img src={kakaoQr} alt="KakaoQr" className="w-7 h-7 object-contain" />
               <span className="font-medium">카톡 </span>
             </div>
           </div>
