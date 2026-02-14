@@ -156,13 +156,15 @@ export const Home = ({ onNavigate }: HomeProps) => {
               <Phone size={28} strokeWidth={1.5} className="text-[#B0B8C1]" />
               <span className="tracking-wide font-medium">010-7393-1157</span>
             </a>
+            {/*
             <div className="flex items-center gap-2 text-[#596574] text-[15px]">
               <img src={lineIcon} alt="Line" className="w-7 h-7 object-contain" />
               <span className="font-medium">라인 : knn900</span>
             </div>
+            */}
             <div className="flex items-center gap-2 text-[#596574] text-[15px]">
               <img src={kakaoIcon} alt="Kakao" className="w-7 h-7 object-contain" />
-              <span className="font-medium">카톡 : knn900</span>
+              <span className="font-medium">카톡 </span>
             </div>
           </div>
           <div className="text-[13px] text-[#8B95A1] mt-4 pl-1">
