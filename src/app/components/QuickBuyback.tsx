@@ -74,7 +74,7 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
     if (!agreed || !agreedPrivacy) return toast.error("모든 약관에 동의해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
     //if (!bankName || !accountNumber || !applicantName) return toast.error("계좌 정보를 모두 입력해주세요.");
-    //if (files.length === 0) return toast.error("상품권 이미지를 첨부해주세요.");
+    if (files.length === 0) return toast.error("상품권 이미지를 첨부해주세요.");
 
     setIsSubmitting(true);
     try {
@@ -186,16 +186,16 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
             placeholder="이름"
             value={applicantName}
             onChange={(e) => setApplicantName(e.target.value)}
-          />
+          />          
           <PhoneVerificationInput
             value={phoneNumber}
             onChange={setPhoneNumber}
             onVerifiedChange={setIsPhoneVerified}
           />
+          <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 카카오톡을 통해 문의주세요</label>
         </Card>
 
         {/* File Upload */}
-        {/*
         <div className="space-y-2">
           <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">상품권 이미지 <span className="text-[11px] font-normal">(복수 선택 가능)</span></label>
           <div className="flex flex-wrap gap-2">
@@ -217,7 +217,6 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
             </label>
           </div>
         </div>
-        */}
         
         {/* Legal */}
         <Card className="bg-[#F9FAFB] border-none p-5 space-y-4">
