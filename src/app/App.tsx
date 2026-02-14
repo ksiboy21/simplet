@@ -14,7 +14,7 @@ import { db } from '@/lib/supabase';
 
 const TABS = [
   { id: 'home', label: '홈', icon: HomeIcon },
-  { id: 'quick', label: '즉시판매1', icon: Zap },
+  { id: 'quick', label: '즉시판매', icon: Zap },
   { id: 'reserve', label: '예약판매', icon: CalendarClock },
   { id: 'submit', label: '보내기', icon: Send },
 ];
