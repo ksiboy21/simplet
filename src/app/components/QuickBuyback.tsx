@@ -164,6 +164,7 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
 
         {/* Input Fields */}
         <Card className="space-y-4">
+          {/*
           <div className="flex gap-2">
             <div className="w-[30%]">
               <Input
@@ -180,8 +181,9 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
               />
             </div>
           </div>
+          */}
           <Input
-            placeholder="예금주"
+            placeholder="이름"
             value={applicantName}
             onChange={(e) => setApplicantName(e.target.value)}
           />
