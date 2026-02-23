@@ -115,8 +115,13 @@ async function main() {
     console.log(`Found ${targetOrders.length} waiting orders (Total in DB: ${orders.length}).`);
 
     // 2. Check dates (KST)
-    const today = new Date(kstTime);
-    today.setHours(0, 0, 0, 0);
+    // IMPORTANT: Do NOT use setHours(0,0,0,0) here.
+    // In GitHub Actions (UTC server), setHours(0,0,0,0) sets UTC midnight,
+    // which equals 09:00 KST — causing a 9-hour offset in date comparisons.
+    // Instead, extract KST year/month/day directly from the kstTime string.
+    const kstDateStr = kstTime.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).split(' ')[0]; // "YYYY-MM-DD"
+    const [ty, tm, td] = kstDateStr.split('-').map(Number);
+    const today = new Date(ty, tm - 1, td); // KST midnight (local)
 
     for (const order of targetOrders) {
         if (!order.expected_date) continue;
