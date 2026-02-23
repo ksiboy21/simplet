@@ -23,50 +23,61 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- Solapi Helper (Node.js version) ---
-async function sendSMS(to, text) {
-    const date = new Date().toISOString().split('.')[0] + 'Z';
-    const salt = crypto.randomBytes(16).toString('hex');
-    const message = date + salt;
+async function sendSMS(to, text, retries = 3, delayMs = 2000) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        const date = new Date().toISOString().split('.')[0] + 'Z';
+        const salt = crypto.randomBytes(16).toString('hex');
+        const message = date + salt;
 
-    const signature = crypto
-        .createHmac('sha256', SOLAPI_API_SECRET)
-        .update(message)
-        .digest('hex');
+        const signature = crypto
+            .createHmac('sha256', SOLAPI_API_SECRET)
+            .update(message)
+            .digest('hex');
 
-    const authHeader = `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`;
+        const authHeader = `HMAC-SHA256 apiKey=${SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`;
 
-    try {
-        const response = await fetch('https://api.solapi.com/messages/v4/send', {
-            method: 'POST',
-            headers: {
-                'Authorization': authHeader,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: {
-                    to,
-                    from: SENDER_NUMBER || '01000000000',
-                    text,
+        try {
+            const response = await fetch('https://api.solapi.com/messages/v4/send', {
+                method: 'POST',
+                headers: {
+                    'Authorization': authHeader,
+                    'Content-Type': 'application/json',
                 },
-                agent: {
-                    sdkVersion: 'js/node-script',
-                    osPlatform: 'node',
+                body: JSON.stringify({
+                    message: {
+                        to,
+                        from: SENDER_NUMBER || '01000000000',
+                        text,
+                    },
+                    agent: {
+                        sdkVersion: 'js/node-script',
+                        osPlatform: 'node',
+                    }
+                }),
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                console.error(`SMS Failed to ${to} (attempt ${attempt}/${retries}):`, err);
+                if (attempt < retries) {
+                    console.log(`Retrying in ${delayMs}ms...`);
+                    await new Promise(r => setTimeout(r, delayMs));
+                    continue;
                 }
-            }),
-        });
+                return false;
+            }
 
-        if (!response.ok) {
-            const err = await response.text();
-            console.error(`SMS Failed to ${to}:`, err);
-            return false;
+            console.log(`SMS Sent to ${to} (attempt ${attempt})`);
+            return true;
+        } catch (error) {
+            console.error(`SMS Error to ${to} (attempt ${attempt}/${retries}):`, error);
+            if (attempt < retries) {
+                console.log(`Retrying in ${delayMs}ms...`);
+                await new Promise(r => setTimeout(r, delayMs));
+            }
         }
-
-        console.log(`SMS Sent to ${to}`);
-        return true;
-    } catch (error) {
-        console.error(`SMS Error to ${to}:`, error);
-        return false;
     }
+    return false;
 }
 
 // --- Main Logic ---
@@ -171,11 +182,12 @@ ${SITE_URL}`;
             // So if overdueDays > 7, check if (overdueDays - 7) % 7 === 0.
 
             if (overdueDays <= 7) {
-                message = `안녕하세요, ${order.applicant_name}님. 약정하신 상품권이 아직 첨부되지 않았습니다.
+                message = `안녕하세요, ${order.applicant_name}님. 약정일로부터 ${overdueDays}일이 경과하였으나 상품권이 아직 첨부되지 않았습니다.
 지속적인 미이행 시, 이용 약관에 따라 더치트 등록 및 민·형사상 법적 절차가 진행될 수 있음을 엄중히 안내드립니다. 조속한 이행 부탁드립니다.`;
             } else if (overdueDays % 7 === 1) {
                 // e.g. D+8 (8%7=1), D+15 (15%7=1) -> Weekly starting right after the first week.
-                message = `${order.applicant_name}님, 현재 귀하의 계약 불이행으로 인해 법적 조치 중입니다.
+                const weeks = Math.floor(overdueDays / 7);
+                message = `${order.applicant_name}님, 약정일로부터 ${overdueDays}일(${weeks}주)이 경과하였으며 현재 귀하의 계약 불이행으로 인해 법적 조치 중입니다.
 형사 고소와 별개로, 본 계약 의무 불이행으로 발생하는 채권추심 및 민사 소송 비용(송달료, 인지대, 변호사 보수 등) 일체는 판매자인 귀하의 전액 부담으로 청구됩니다. 더 큰 불이익이 발생하기 전에 해결하시기 바랍니다.`;
             }
         }
