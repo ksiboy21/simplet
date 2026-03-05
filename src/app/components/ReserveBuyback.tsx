@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader, Input, Button, Card } from './ui/TossComponents';
 import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
 import { AgreementItem } from './ui/AgreementItem';
-
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useRates, useTerms, useUserOrders } from '@/lib/useMockData';
-import { db } from '@/lib/supabase';
+import { db, supabase } from '@/lib/supabase';
 import { sendSMS } from '@/lib/solapi';
 
 interface ReserveBuybackProps {
@@ -24,12 +24,9 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const { terms } = useTerms();
   const { addOrder } = useUserOrders();
 
-  // Step 2 State - Form
+  // Form State
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
-  const [email] = useState('');
-  const [idCardFiles] = useState<File[]>([]);
-  const [bankFiles] = useState<File[]>([]);
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
 
@@ -39,6 +36,13 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // eSignon 서명 모달 State
+  const [signUrl, setSignUrl] = useState<string | null>(null);
+  const [showSignModal, setShowSignModal] = useState(false);
+
+  // 서명 완료 콜백을 위한 ref (최신 order data snapshot 유지)
+  const pendingOrderRef = useRef<any>(null);
+
   // Dynamic Terms State
   const [checkedTerms, setCheckedTerms] = useState<Record<string, { checked: boolean; agreedAt: string }>>({});
 
@@ -47,8 +51,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       ...prev,
       [id]: {
         checked,
-        // If checking, record current time. If unchecking, keep old time or reset? Better to reset or update.
-        // Requirement: "Show time of LAST agreement".
         agreedAt: checked ? new Date().toISOString() : (prev[id]?.agreedAt || new Date().toISOString())
       }
     }));
@@ -62,14 +64,12 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   };
 
   // Constants & Calculations
-  // Find rate based on selected type
   const getRateName = (type: string) => {
     if (type.includes('lotte')) return '롯데';
     return '';
   };
 
   const rateObj = rates.find(r => r.type === 'reserve' && r.name.includes(getRateName(voucherType)));
-  // Default rates if DB fetch fails or not found
   const defaultRate = 0.8;
   const RATE = rateObj ? rateObj.rate / 100 : defaultRate;
   const RATE_PERCENT = rateObj ? rateObj.rate : (defaultRate * 100);
@@ -77,7 +77,27 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const faceValue = amount || 0;
   const deposit = Math.round(faceValue * RATE);
 
+  // eSignon 서명 완료 콜백 리스너
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      // eSignon은 서명 완료 시 message를 보냄
+      console.log('[eSignon callback]', event.data);
+      // eSignon callback은 다양한 형태로 올 수 있음: 문자열 또는 객체
+      const data = event.data;
+      const isSignComplete =
+        data === 'esignon_sign_complete' ||
+        (typeof data === 'object' && data?.type === 'sign_complete') ||
+        (typeof data === 'string' && (data.includes('complete') || data.includes('COMPLETE') || data.includes('sign')));
 
+      if (isSignComplete && pendingOrderRef.current) {
+        setShowSignModal(false);
+        await submitOrder(pendingOrderRef.current);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,55 +105,79 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
-    //if (!email) return toast.error("이메일을 입력해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
-    //if (idCardFiles.length === 0) return toast.error("신분증을 첨부해주세요.");
-    //if (bankFiles.length === 0) return toast.error("통장사본을 첨부해주세요.");
     if (!bankName || !accountNumber) return toast.error("계좌 정보를 입력해주세요.");
-
-
     if (!areAllTermsChecked()) return toast.error("모든 필수 약관에 동의해주세요.");
 
     setIsSubmitting(true);
     try {
-      const idCardUrl = idCardFiles.length > 0 ? await db.uploadImage(idCardFiles[0]) : '';
-      const bankBookUrl = bankFiles.length > 0 ? await db.uploadImage(bankFiles[0]) : '';
+      // 계약서에 미리 채울 주문 정보 준비
+      const orderDetails = {
+        applicant_name: name,
+        phone: contact,
+        amount: faceValue,
+        deposit: deposit,
+        rate: RATE_PERCENT,
+        voucherType,
+      };
 
-      // Construct term agreements
+      // 약관 동의 목록
       const termAgreements = terms?.reserve?.items?.map(item => ({
         id: item.id,
         title: item.title,
         agreedAt: checkedTerms[item.id]?.agreedAt || new Date().toISOString()
       })).filter(t => checkedTerms[t.id]?.checked) || [];
 
-      await addOrder({
+      // 서명 완료 후 제출할 주문 데이터 저장
+      pendingOrderRef.current = {
         name: voucherType === 'lotte_tomorrow' ? '롯데 모바일 익일' : '롯데 모바일 예약',
         amount: faceValue,
-        deposit: deposit,
+        deposit,
         expected_date: availableDate,
-        status: '주문 확인중',
+        status: '주문 확인중' as const,
         phone: contact,
         applicant_name: name,
         bank_name: bankName,
         account_number: accountNumber,
-        ...(email ? { email } : {}),
-        type: 'reserve',
+        type: 'reserve' as const,
         rate: RATE_PERCENT,
-        ...(idCardUrl ? { id_card_image: idCardUrl } : {}),
-        ...(bankBookUrl ? { bank_book_image: bankBookUrl } : {}),
         is_my_order: true,
-        term_agreements: termAgreements
+        term_agreements: termAgreements,
+      };
+
+      // eSignon Edge Function 호출 → 서명 URL 획득
+      const { data, error } = await supabase.functions.invoke('create-esignon-link', {
+        body: { orderDetails }
       });
 
-      // Send Confirmation SMS
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      if (!data?.signUrl) throw new Error('서명 URL을 받지 못했습니다.');
+
+      setSignUrl(data.signUrl);
+      setShowSignModal(true);
+    } catch (error: any) {
+      console.error('eSignon Error:', error);
+      toast.error(`계약서 생성 실패: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitOrder = async (orderData: any) => {
+    setIsSubmitting(true);
+    try {
+      await addOrder(orderData);
+
+      // 확인 SMS 발송
       try {
-        await sendSMS(contact, `안녕하세요, 고객님.주문이 정상적으로 접수되었습니다.
-검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.
-진행 상황은[주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
+        await sendSMS(orderData.phone, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
       } catch (smsError) {
-        console.error('Failed to send confirmation SMS:', smsError);
-        // Continue flow even if SMS fails
+        console.error('SMS 발송 실패:', smsError);
       }
+
+      toast.success('선매입 신청이 완료되었습니다!');
+      pendingOrderRef.current = null;
 
       if (onSuccess) {
         onSuccess();
@@ -147,8 +191,55 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
+  // 서명 완료 버튼 (수동 완료 처리 - iframe 환경에 따라 callback이 안 오는 경우 대비)
+  const handleManualComplete = async () => {
+    if (!pendingOrderRef.current) return;
+    setShowSignModal(false);
+    await submitOrder(pendingOrderRef.current);
+  };
+
   return (
     <div className="max-w-md mx-auto pb-20">
+      {/* eSignon 서명 모달 */}
+      {showSignModal && signUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col" style={{ height: '90vh' }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-[#191F28]">선매입 계약서 서명</h2>
+              <button
+                onClick={() => setShowSignModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={signUrl}
+                className="w-full h-full border-none"
+                title="선매입 계약서 전자서명"
+                allow="camera; microphone"
+              />
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+              <p className="text-xs text-[#8B95A1] text-center mb-3">
+                위 계약서를 읽고 서명을 완료해주세요. 서명 완료 후 자동으로 처리됩니다.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="secondary" fullWidth onClick={() => setShowSignModal(false)}>
+                  취소
+                </Button>
+                <Button fullWidth onClick={handleManualComplete}>
+                  서명 완료했습니다
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         <motion.div
           key="step2"
@@ -168,9 +259,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   { id: 'lotte_tomorrow', label: '유형 A: 익일 공급형' },
                   { id: 'lotte_custom', label: '유형 B: 예약 공급형' }
                 ].map((item) => {
-                  // Calculate rate for this item
                   const itemRateName = item.id.includes('lotte') ? '롯데' : '이마트';
-                  // Fallback to default if not found in rates array
                   const foundRate = rates.find(r => r.type === 'reserve' && r.name.includes(itemRateName));
                   const rateValue = foundRate ? foundRate.rate : 80;
 
@@ -282,73 +371,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               </button>
             </div>
 
-            {/* Uploads */}
-            {/*
-            <Card className="space-y-4">
-              <Input
-                label="이메일(전자계약서 수신용)"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@toss.im"
-                type="email"
-                className="bg-white text-black"
-              />               
-              <div className="flex gap-3">
-                <div className="flex-1 min-w-0 space-y-2">
-                  <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신분증 이미지</label>
-                  <div className="flex flex-col">
-                    {idCardFiles.length > 0 ? (
-                      idCardFiles.map((file, i) => (
-                        <div key={i} className="relative w-full aspect-[1.6] rounded-[16px] overflow-hidden border border-gray-200">
-                          <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => removeFile(i, idCardFiles, setIdCardFiles)}
-                            className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-1 transition-colors hover:bg-black/70"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <label className="w-full aspect-[1.6] rounded-[16px] bg-[#F9FAFB] border border-dashed border-[#B0B8C1] flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors text-[#B0B8C1] p-2 text-center">
-                        <Plus size={24} />
-                        <span className="text-[11px] mt-1 break-keep">주민번호 뒷자리<br />마스킹 필수</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setIdCardFiles)} />
-                      </label>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0 space-y-2">
-                  <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">통장사본 이미지</label>
-                  <div className="flex flex-col">
-                    {bankFiles.length > 0 ? (
-                      bankFiles.map((file, i) => (
-                        <div key={i} className="relative w-full aspect-[1.6] rounded-[16px] overflow-hidden border border-gray-200">
-                          <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => removeFile(i, bankFiles, setBankFiles)}
-                            className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-1 transition-colors hover:bg-black/70"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <label className="w-full aspect-[1.6] rounded-[16px] bg-[#F9FAFB] border border-dashed border-[#B0B8C1] flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors text-[#B0B8C1] p-2 text-center">
-                        <Plus size={24} />
-                        <span className="text-[11px] mt-1 break-keep">본인 명의 계좌만<br />가능</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setBankFiles)} />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              </div>            
-            </Card>
-            */}
-
             {/* Final Agreements */}
             <Card className="bg-[#F9FAFB] border-none p-6 rounded-[24px] space-y-4">
               <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mb-4">
@@ -369,7 +391,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   />
                 ))
               ) : (
-                // Fallback
                 <>
                   <AgreementItem
                     title={terms?.reserve?.responsibilityTitle || "민형사상 책임 및 거래 약관 동의"}
@@ -389,7 +410,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
             <div className="flex gap-3">
               <Button fullWidth type="submit" disabled={!areAllTermsChecked() || isSubmitting || !amount}>
-                {isSubmitting ? "처리 중..." : "선매입 신청하기"}
+                {isSubmitting ? "처리 중..." : "계약서 서명 후 신청하기"}
               </Button>
             </div>
           </form>

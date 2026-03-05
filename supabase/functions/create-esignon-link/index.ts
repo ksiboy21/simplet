@@ -1,13 +1,15 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const ESIGNON_DOMAIN = "https://docs.esignon.net";
+const COMPANY_ID = "testapi2";
+const MEMB_EMAIL = "ksiboy22@naver.com";
+const MEMB_PWD = "simple21!!";
+const TEMPLATE_ID = 737;
 
 serve(async (req) => {
     if (req.method === "OPTIONS") {
@@ -16,96 +18,89 @@ serve(async (req) => {
 
     try {
         const { orderDetails } = await req.json();
+        // orderDetails: { applicant_name, phone, amount, deposit, rate }
 
-        const ESIGNON_CLIENT_ID = Deno.env.get("ESIGNON_CLIENT_ID");
-        const ESIGNON_CLIENT_SECRET = Deno.env.get("ESIGNON_CLIENT_SECRET");
-        const ESIGNON_TEMPLATE_ID = Deno.env.get("ESIGNON_TEMPLATE_ID");
-
-        if (!ESIGNON_CLIENT_ID || !ESIGNON_CLIENT_SECRET || !ESIGNON_TEMPLATE_ID) {
-            throw new Error("서버 환경 변수에 eSignon 인증 정보가 누락되었습니다.");
-        }
-
-        // 1. Get Authentication Token
-        const tokenResponse = await fetch("https://docs.esignon.net/api/v3/maketoken", {
+        // ① 인증 토큰 발급
+        const tokenRes = await fetch(`${ESIGNON_DOMAIN}/api/${COMPANY_ID}/login`, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
+                "accept": "application/json",
+                "content-type": "application/json",
             },
             body: JSON.stringify({
-                client_id: ESIGNON_CLIENT_ID,
-                client_secret: ESIGNON_CLIENT_SECRET,
+                header: { request_code: "1001Q" },
+                body: {
+                    memb_email: MEMB_EMAIL,
+                    memb_pwd: MEMB_PWD,
+                },
             }),
         });
 
-        if (!tokenResponse.ok) {
-            const errorText = await tokenResponse.text();
-            throw new Error(`eSignon 토큰 발급 실패: ${errorText}`);
+        const tokenData = await tokenRes.json();
+
+        if (tokenData?.header?.result_code !== "00") {
+            throw new Error(`eSignon 인증 실패: ${tokenData?.header?.result_msg}`);
         }
 
-        const { access_token } = await tokenResponse.json();
+        const accessToken = tokenData.body.access_token;
 
-        // 2. Create Linksign
-        // Note: The payload here uses typical standard parameters, which may need adjustment 
-        // depending on the exact eSignon template settings.
-        const linksignResponse = await fetch("https://docs.esignon.net/api/v3/link/start", {
+        // ② 비대면 문서 시작 (계약서 생성)
+        const workflowName = `선매입 계약서 - ${orderDetails.applicant_name}`;
+        const now = new Date();
+        const expiry = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3일 후
+        const expiryStr = expiry.toISOString().replace("T", " ").substring(0, 19);
+
+        const workflowRes = await fetch(`${ESIGNON_DOMAIN}/api/v3/workflows/start`, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${access_token}`,
-                "Content-Type": "application/json",
+                "accept": "application/json",
+                "content-type": "application/json",
+                "Authorization": `esignon ${accessToken}`,
             },
             body: JSON.stringify({
-                template_id: ESIGNON_TEMPLATE_ID,
-                link_manage_name: `예약판매 계약서 - ${orderDetails.applicant_name}`,
-                expiry_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-                signers: [
+                workflow_name: workflowName,
+                template_id: TEMPLATE_ID,
+                language: "ko",
+                expiry_date: expiryStr,
+                is_preview: false,
+                recipient_list: [
                     {
-                        language: "ko",
-                        role: "Signer 1", // Assuming Template requires Signer 1
+                        email: orderDetails.phone, // 휴대폰 번호 또는 이메일
+                        name: orderDetails.applicant_name,
+                        order: 1,
                     }
                 ],
-                // Insert dynamic fields here based on template setup
-                // The exact field_name matches the text/label fields defined in the eSignon template editor.
-                fields: [
-                    {
-                        field_name: "고객명", // Example: needs to match template
-                        field_value: orderDetails.applicant_name || ""
-                    },
-                    {
-                        field_name: "연락처",
-                        field_value: orderDetails.phone || ""
-                    },
-                    {
-                        field_name: "예약금",
-                        field_value: `${orderDetails.deposit?.toLocaleString() || 0}원`
-                    },
-                    {
-                        field_name: "상품권액면가",
-                        field_value: `${orderDetails.amount?.toLocaleString() || 0}원`
-                    }
-                ]
+                field_list: [
+                    { name: "고객명", value: orderDetails.applicant_name || "" },
+                    { name: "연락처", value: orderDetails.phone || "" },
+                    { name: "상품권액면가", value: `${(orderDetails.amount || 0).toLocaleString()}원` },
+                    { name: "물품대금", value: `${(orderDetails.deposit || 0).toLocaleString()}원` },
+                    { name: "매입률", value: `${orderDetails.rate || 0}%` },
+                ],
             }),
         });
 
-        if (!linksignResponse.ok) {
-            const errorText = await linksignResponse.text();
-            throw new Error(`eSignon 링크생성 실패: ${errorText}`);
+        const workflowData = await workflowRes.json();
+
+        if (!workflowData?.token) {
+            throw new Error(`계약서 생성 실패: ${JSON.stringify(workflowData)}`);
         }
 
-        const linkData = await linksignResponse.json();
-
-        // eSignon typically returns the URL inside 'response' or at the root depending on v3 format.
-        // Replace with exact property once it's tested.
-        const contractUrl = linkData.url || linkData.link_url || (linkData.response && linkData.response.url);
-
-        if (!contractUrl) {
-            throw new Error(`계약서 URL을 응답받지 못했습니다: ${JSON.stringify(linkData)}`);
-        }
+        // ③ 서명 URL 생성
+        // callback_fn=true: 서명 완료 후 부모창으로 postMessage 전송
+        // next_sign=false: 다음 문서 작성하기 버튼 제거
+        const signUrl = `${ESIGNON_DOMAIN}/api/${COMPANY_ID}/sign?token=${workflowData.token}&callback_fn=true&next_sign=false`;
 
         return new Response(
-            JSON.stringify({ contractUrl }),
+            JSON.stringify({
+                signUrl,
+                workflowId: workflowData.workflow_id,
+                workflowName: workflowData.workflow_name,
+            }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
     } catch (error) {
+        console.error("eSignon Error:", error);
         return new Response(
             JSON.stringify({ error: error.message }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 },
