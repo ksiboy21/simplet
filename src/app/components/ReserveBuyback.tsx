@@ -37,8 +37,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // eSignon 서명 모달 State
-  const [signUrl, setSignUrl] = useState<string | null>(null);
   const [showSignModal, setShowSignModal] = useState(false);
+  const [isSigningInProgress, setIsSigningInProgress] = useState(false);
 
   // 서명 완료 콜백을 위한 ref (최신 order data snapshot 유지)
   const pendingOrderRef = useRef<any>(null);
@@ -80,24 +80,25 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   // eSignon 서명 완료 콜백 리스너
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      // eSignon은 서명 완료 시 message를 보냄
-      console.log('[eSignon callback]', event.data);
-      // eSignon callback은 다양한 형태로 올 수 있음: 문자열 또는 객체
-      const data = event.data;
-      const isSignComplete =
-        data === 'esignon_sign_complete' ||
-        (typeof data === 'object' && data?.type === 'sign_complete') ||
-        (typeof data === 'string' && (data.includes('complete') || data.includes('COMPLETE') || data.includes('sign')));
+      // eSignon postMessage 콜백 처리
+      // 서명 완료 시: {"h":""} 형식 또는 특정 이벤트가 옴
+      // callback_fn=true 설정 시 닫기 버튼 클릭 시 콜백 수신
+      console.log('[eSignon callback]', event.origin, JSON.stringify(event.data));
 
-      if (isSignComplete && pendingOrderRef.current) {
-        setShowSignModal(false);
+      // eSignon 도메인에서 온 메시지만 처리
+      if (!event.origin.includes('esignon.net')) return;
+
+      // eSignon이 보내는 완료 메시지 감지
+      // callback_fn=true 시 팝업의 닫기 버튼 클릭 → 부모창으로 메시지 전달
+      if (pendingOrderRef.current && isSigningInProgress) {
+        setIsSigningInProgress(false);
         await submitOrder(pendingOrderRef.current);
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [isSigningInProgress]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +112,18 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
     setIsSubmitting(true);
     try {
+      // 중복 주문 체크: 진행 중인 선매입 주문이 있으면 신청 불가
+      const existingOrders = await db.getUserOrders(contact);
+      const duplicate = existingOrders.find(o =>
+        (o.status === '주문 확인중' || o.status === '예약일정 대기중') &&
+        o.type === 'reserve'
+      );
+      if (duplicate) {
+        toast.error(`이미 진행 중인 선매입 주문건이 있습니다. (주문번호: #${duplicate.id.slice(0, 8)})`);
+        setIsSubmitting(false);
+        return;
+      }
+
       // 계약서에 미리 채울 주문 정보 준비
       const orderDetails = {
         applicant_name: name,
@@ -154,8 +167,30 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       if (data?.error) throw new Error(data.error);
       if (!data?.signUrl) throw new Error('서명 URL을 받지 못했습니다.');
 
-      setSignUrl(data.signUrl);
+      // iframe 대신 팝업으로 열기 (eSignon은 X-Frame-Options으로 iframe 차단)
+      setIsSigningInProgress(true);
       setShowSignModal(true);
+      const popup = window.open(
+        data.signUrl,
+        'esignon_sign',
+        'width=500,height=700,top=100,left=200,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        setIsSigningInProgress(false);
+        setShowSignModal(false);
+        toast.error('팝업이 차단되었습니다. 브라우저에서 팝업 허용 후 다시 시도해주세요.');
+        return;
+      }
+
+      // 팝업이 닫힐 때를 감지 (postMessage 콜백이 없는 경우 대비)
+      const checkPopupClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkPopupClosed);
+          // 팝업이 닫혔지만 아직 서명완료 처리 안 됐으면 모달은 열어두기
+          // (수동 완료 버튼으로 처리하도록)
+        }
+      }, 500);
     } catch (error: any) {
       console.error('eSignon Error:', error);
       toast.error(`계약서 생성 실패: ${error.message}`);
@@ -191,50 +226,50 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
-  // 서명 완료 버튼 (수동 완료 처리 - iframe 환경에 따라 callback이 안 오는 경우 대비)
+  // 서명 완료 버튼 (수동 완료 처리 - postMessage callback이 안 오는 경우 대비)
   const handleManualComplete = async () => {
     if (!pendingOrderRef.current) return;
+    setIsSigningInProgress(false);
     setShowSignModal(false);
     await submitOrder(pendingOrderRef.current);
   };
 
   return (
     <div className="max-w-md mx-auto pb-20">
-      {/* eSignon 서명 모달 */}
-      {showSignModal && signUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col" style={{ height: '90vh' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-[#191F28]">선매입 계약서 서명</h2>
+      {/* eSignon 서명 진행 중 안내 모달 */}
+      {showSignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-[#191F28]">전자서명 진행 중</h2>
               <button
-                onClick={() => setShowSignModal(false)}
+                onClick={() => { setShowSignModal(false); setIsSigningInProgress(false); }}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-hidden">
-              <iframe
-                src={signUrl}
-                className="w-full h-full border-none"
-                title="선매입 계약서 전자서명"
-                allow="camera; microphone"
-              />
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center">
+                <span className="text-3xl">📝</span>
+              </div>
+              <p className="text-[15px] font-medium text-[#191F28]">
+                팝업 창에서 계약서에 서명해주세요
+              </p>
+              <p className="text-[13px] text-[#8B95A1]">
+                서명 완료 후 아래 버튼을 눌러주세요.<br />
+                팝업이 열리지 않으면 브라우저 팝업 허용이 필요합니다.
+              </p>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
-              <p className="text-xs text-[#8B95A1] text-center mb-3">
-                위 계약서를 읽고 서명을 완료해주세요. 서명 완료 후 자동으로 처리됩니다.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="secondary" fullWidth onClick={() => setShowSignModal(false)}>
-                  취소
-                </Button>
-                <Button fullWidth onClick={handleManualComplete}>
-                  서명 완료했습니다
-                </Button>
-              </div>
+            <div className="flex gap-2 mt-6">
+              <Button variant="secondary" fullWidth onClick={() => { setShowSignModal(false); setIsSigningInProgress(false); }}>
+                취소
+              </Button>
+              <Button fullWidth onClick={handleManualComplete}>
+                서명 완료했습니다
+              </Button>
             </div>
           </div>
         </div>
