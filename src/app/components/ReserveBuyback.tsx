@@ -35,71 +35,87 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // eSignon 서명 모달 State
-  const [isSigningInProgress, setIsSigningInProgress] = useState(false);
+  // 서명 대기 모달 State
+  const [showWaitModal, setShowWaitModal] = useState(false);
+  const [workflowId, setWorkflowId] = useState<number | null>(null);
 
   // 서명 완료 콜백을 위한 ref (최신 order data snapshot 유지)
   const pendingOrderRef = useRef<any>(null);
 
   // Dynamic Terms State
-  const [checkedTerms, setCheckedTerms] = useState<Record<string, { checked: boolean; agreedAt: string }>>({});
+  type TermState = { checked: boolean; agreedAt?: string };
+  const [checkedTerms, setCheckedTerms] = useState<Record<string, TermState>>({});
+
+  // 휴대폰 번호 변경 시 인증 초기화
+  useEffect(() => {
+    setIsPhoneVerified(false);
+  }, [contact]);
+
+  // 필수 약관 모두 동의 여부
+  const areAllTermsChecked = () => {
+    if (!terms?.reserve?.items) return false;
+    // 필수 약관 항목들이 모두 checkedTerms에 포함되고 값이 true여야 함
+    return terms.reserve.items.every(item => checkedTerms[item.id]?.checked);
+  };
 
   const toggleTerm = (id: string, checked: boolean) => {
     setCheckedTerms(prev => ({
       ...prev,
       [id]: {
         checked,
-        agreedAt: checked ? new Date().toISOString() : (prev[id]?.agreedAt || new Date().toISOString())
+        agreedAt: checked ? new Date().toISOString() : undefined
       }
     }));
   };
 
-  const areAllTermsChecked = () => {
-    if (terms?.reserve?.items && terms.reserve.items.length > 0) {
-      return terms.reserve.items.every(item => !item.required || checkedTerms[item.id]?.checked);
-    }
-    return agreedFinal && agreedPrivacy;
+  const calculateTotal = (val: number | null) => {
+    if (!val) return { deposit: 0, balance: 0, apply_rate: 0 };
+    const buybackRate = rates.find(r => r.type === 'reserve' && r.name.includes(voucherType === 'lotte_custom' ? '이마트' : '롯데'))?.rate || 80;
+    const finalVal = val * (buybackRate / 100);
+    return { deposit: finalVal, balance: 0, apply_rate: buybackRate };
   };
-
-  // Constants & Calculations
-  const getRateName = (type: string) => {
-    if (type.includes('lotte')) return '롯데';
-    return '';
-  };
-
-  const rateObj = rates.find(r => r.type === 'reserve' && r.name.includes(getRateName(voucherType)));
-  const defaultRate = 0.8;
-  const RATE = rateObj ? rateObj.rate / 100 : defaultRate;
-  const RATE_PERCENT = rateObj ? rateObj.rate : (defaultRate * 100);
 
   const faceValue = amount || 0;
-  const deposit = Math.round(faceValue * RATE);
+  const { deposit, apply_rate: RATE_PERCENT } = calculateTotal(amount);
 
-  // eSignon 서명 완료 콜백 리스너
+  // eSignon 서명 상태 폴링 리스너
   useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
-      console.log('[eSignon callback]', event.origin, event.data);
+    let checkInterval: NodeJS.Timeout;
 
-      if (!event.origin.includes('esignon.net')) return;
+    if (showWaitModal && workflowId) {
+      checkInterval = setInterval(async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('check-esignon-status', {
+            body: { workflowId }
+          });
 
-      const data = typeof event.data === 'string' ? event.data : JSON.stringify(event.data || {});
-
-      // 실제 eSignon 완료 콜백 감지 (esignon_sign_complete)
-      if (data.includes('complete') || data.includes('esignon_sign_complete')) {
-        if (pendingOrderRef.current && isSigningInProgress) {
-          setIsSigningInProgress(false);
-          await submitOrder(pendingOrderRef.current);
+          if (!error && data?.isComplete) {
+            clearInterval(checkInterval);
+            if (pendingOrderRef.current) {
+              await submitOrder(pendingOrderRef.current);
+            }
+          }
+        } catch (e) {
+          console.error("Status check error", e);
         }
-      }
-    };
+      }, 3000); // 3초마다 상태 확인
+    }
 
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [isSigningInProgress]);
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [showWaitModal, workflowId]);
+
+  const handleCancelSign = () => {
+    setShowWaitModal(false);
+    setWorkflowId(null);
+    pendingOrderRef.current = null;
+    toast.info("선매입 신청이 취소되었습니다.");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || isSigningInProgress) return;
+    if (isSubmitting || showWaitModal) return;
     if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
@@ -160,44 +176,21 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
-      if (!data?.signUrl) throw new Error('서명 URL을 받지 못했습니다.');
 
-      setIsSigningInProgress(true);
-
-      const popup = window.open(
-        data.signUrl,
-        'esignon_sign',
-        'width=500,height=700,top=100,left=200,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
-      );
-
-      if (!popup) {
-        setIsSigningInProgress(false);
-        setIsSubmitting(false);
-        toast.error('팝업이 차단되었습니다. 브라우저에서 팝업 허용 후 다시 시도해주세요.');
-        return;
-      }
-
-      // 팝업 닫힘 감지
-      const checkPopupClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkPopupClosed);
-          // 팝업이 닫혔는데 여전히 서명 진행중 상태라면 (콜백을 못받은 경우)
-          if (isSigningInProgress) {
-            setIsSigningInProgress(false);
-            setIsSubmitting(false);
-            toast.info('전자서명 창이 닫혔습니다. 서명을 완료하지 않았다면 다시 시도해주세요.');
-          }
-        }
-      }, 500);
+      // 팝업 없이 대기 모달 표시 & 폴링 시작
+      setWorkflowId(data.workflowId);
+      setShowWaitModal(true);
 
     } catch (error: any) {
       console.error('eSignon Error:', error);
       toast.error(`계약서 생성 실패: ${error.message}`);
+    } finally {
       setIsSubmitting(false);
     }
   };
 
   const submitOrder = async (orderData: any) => {
+    setIsSubmitting(true);
     try {
       await addOrder(orderData);
       try {
@@ -208,6 +201,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
       toast.success('선매입 신청이 완료되었습니다!');
       pendingOrderRef.current = null;
+      setShowWaitModal(false);
+      setWorkflowId(null);
       setIsSubmitting(false);
 
       if (onSuccess) {
@@ -222,6 +217,33 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
   return (
     <div className="max-w-md mx-auto pb-20">
+      {/* 카카오톡 서명 대기 모달 */}
+      {showWaitModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 transition-opacity">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 text-center space-y-4">
+            <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center animate-pulse">
+              <span className="text-3xl">📱</span>
+            </div>
+
+            <h2 className="text-xl font-bold text-[#191F28]">카카오톡 확인 중</h2>
+            <p className="text-[15px] font-medium text-[#4E5968] leading-relaxed">
+              입력하신 연락처로 전자계약서가 발송되었습니다.<br />
+              <span className="text-[#3182F6] font-semibold">카카오톡 서명이 완료되면</span> 자동으로 신청이 접수됩니다.
+            </p>
+
+            <div className="mt-8 pt-4 border-t border-gray-100">
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={handleCancelSign}
+              >
+                신청 취소하기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         <motion.div
           key="step2"
