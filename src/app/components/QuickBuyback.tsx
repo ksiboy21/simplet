@@ -73,7 +73,7 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
     if (isSubmitting) return;
     if (!agreed || !agreedPrivacy) return toast.error("모든 약관에 동의해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
-    //if (!bankName || !accountNumber || !applicantName) return toast.error("계좌 정보를 모두 입력해주세요.");
+    if (!bankName || !accountNumber || !applicantName) return toast.error("계좌 정보를 모두 입력해주세요.");
     if (files.length === 0) return toast.error("상품권 이미지를 첨부해주세요.");
 
     setIsSubmitting(true);
@@ -164,7 +164,6 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
 
         {/* Input Fields */}
         <Card className="space-y-4">
-          {/*
           <div className="flex gap-2">
             <div className="w-[30%]">
               <Input
@@ -181,12 +180,11 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
               />
             </div>
           </div>
-          */}
           <Input
             placeholder="이름"
             value={applicantName}
             onChange={(e) => setApplicantName(e.target.value)}
-          />          
+          />
           <PhoneVerificationInput
             value={phoneNumber}
             onChange={setPhoneNumber}
@@ -217,7 +215,7 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
             </label>
           </div>
         </div>
-        
+
         {/* Legal */}
         <Card className="bg-[#F9FAFB] border-none p-5 space-y-4">
           <AgreementItem

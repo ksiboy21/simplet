@@ -4,7 +4,7 @@ import { ChevronRight, Settings, Zap, CalendarClock, Send, TrendingUp, Phone } f
 import { useRates } from '@/lib/useMockData';
 import kakaoIcon from '@/assets/Frame 2.png';
 import lineIcon from '@/assets/Frame 1.png';
-import kakaoQr from '@/assets/kakao.webp';
+
 
 interface HomeProps {
   onNavigate: (tab: string) => void;
@@ -14,10 +14,6 @@ export const Home = ({ onNavigate }: HomeProps) => {
   const { rates } = useRates();
 
   const reserveRates = rates.filter(r => r.type === 'reserve' && r.active);
-  // Manually add 'Shinsegae Emart' if not present (Frontend override)
-  if (!reserveRates.find(r => r.name.includes('이마트') || r.name.includes('신세계'))) {
-    reserveRates.push({ id: 9999, type: 'reserve', name: '신세계 이마트전용', rate: 80, active: true });
-  }
 
   const instantRates = rates.filter(r => r.type === 'instant' && r.active);
 
@@ -58,7 +54,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
           <div className="mb-6">
             <div className="flex items-center gap-1.5 mb-3">
               <CalendarClock size={15} className="text-[#0064FF]" />
-              <span className="text-[13px] font-semibold text-[#6B7684]">예약 매입</span>
+              <span className="text-[13px] font-semibold text-[#6B7684]">선매입</span>
             </div>
             <div className="space-y-3">
               {reserveRates.length > 0 ? reserveRates.map(rate => (
@@ -122,8 +118,8 @@ export const Home = ({ onNavigate }: HomeProps) => {
                 <CalendarClock size={22} />
               </div>
               <div className="text-left space-y-0.5">
-                <div className="font-bold text-[#191F28] text-[16px]">예약 판매하기</div>
-                <div className="text-[13px] text-[#8B95A1]">판매대금 미리 받고 예약일에 상품권을 전송해요</div>
+                <div className="font-bold text-[#191F28] text-[16px]">선매입 신청</div>
+                <div className="text-[13px] text-[#8B95A1]">공급 예정 물량을 선결제 방식으로 미리 매각하는 서비스입니다.</div>
               </div>
             </div>
             <ChevronRight size={20} className="text-[#D1D6DB] group-hover:text-[#B0B8C1] group-hover:translate-x-1 transition-all" />
@@ -165,13 +161,12 @@ export const Home = ({ onNavigate }: HomeProps) => {
             */}
             <div className="flex items-center gap-2 text-[#596574] text-[15px]">
               <img src={kakaoIcon} alt="Kakao" className="w-7 h-7 object-contain" />
-              <img src={kakaoQr} alt="KakaoQr" className="w-[16%] h-auto" />
-              {/*<span className="font-medium">카톡 </span>*/}
+              <span className="tracking-wide font-medium">knn900</span>
             </div>
           </div>
           <div className="text-[13px] text-[#8B95A1] mt-4 pl-1">
-            <p className="leading-snug">운영시간: 평일 09:00 ~ 18:00</p>
-            <p className="leading-snug mt-1">점심시간: 12:00 - 13:00</p>
+            <p className="leading-snug">운영시간: 12:00 ~ 02:00</p>
+            <p className="leading-snug mt-1">휴게시간: 22:00 - 23:00</p>
           </div>
         </div>
 

@@ -18,7 +18,7 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
   const [isVerified, setIsVerified] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  const [bypassed, setBypassed] = useState(false);
+
 
   const handleSend = async () => {
     if (!value || value.length < 10) return toast.error("올바른 연락처를 입력해주세요.");
@@ -35,7 +35,7 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
       setIsVerified(false);
       onVerifiedChange(false);
       setInputCode('');
-      setBypassed(true);
+
       toast.success("테스트 모드: 인증번호 123456");
       return;
     }
@@ -49,11 +49,11 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
       setIsVerified(false);
       onVerifiedChange(false);
       setInputCode('');
-      setBypassed(false);
+
       toast.success("인증번호가 발송되었습니다.");
 
       // Start cooldown
-      setCooldown(10);
+      setCooldown(60); // 1 minute
       const timer = setInterval(() => {
         setCooldown(prev => {
           if (prev <= 1) {
@@ -101,7 +101,7 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
           onClick={handleSend}
           disabled={isVerified || !value || cooldown > 0}
         >
-          {isVerified ? "완료" : (cooldown > 0 ? `${cooldown}초` : (isSent ? "재전송" : "인증요청"))}
+          {isVerified ? "완료" : (cooldown > 0 ? `${Math.floor(cooldown / 60)}:${(cooldown % 60).toString().padStart(2, '0')}` : (isSent ? "재전송" : "인증요청"))}
         </Button>
       </div>
 

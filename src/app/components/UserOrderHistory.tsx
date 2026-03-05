@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Button, Input } from './ui/TossComponents';
+import { Card, Button } from './ui/TossComponents';
 import { ArrowLeft, MessageCircle, ChevronRight, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useUserOrders } from '@/lib/useMockData';
 import { db } from '@/lib/supabase';
+import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
 
 
 interface UserOrderHistoryProps {
@@ -14,6 +15,7 @@ interface UserOrderHistoryProps {
 export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
   const [phone, setPhone] = useState('');
   const [verifiedPhone, setVerifiedPhone] = useState('');
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const { orders, updateOrder } = useUserOrders(verifiedPhone);
 
   const [step, setStep] = useState<'input' | 'list'>('input');
@@ -27,6 +29,10 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
   const handleLookup = () => {
     if (phone.length < 10) {
       toast.error('올바른 휴대폰 번호를 입력해주세요.');
+      return;
+    }
+    if (!isPhoneVerified) {
+      toast.error('휴대폰 번호 인증을 완료해주세요.');
       return;
     }
     setVerifiedPhone(phone);
@@ -79,7 +85,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
   };
 
   const calculateOffsetAmount = (amount: number, rate: number = 80) => {
-    return Math.floor(amount * (1.5 - (rate / 100)));
+    return Math.round(amount * (1.5 - (rate / 100)));
   };
 
   if (step !== 'list') {
@@ -106,16 +112,14 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-[#8B95A1] ml-1">휴대폰 번호</label>
-              <Input
-                placeholder="01012345678"
+            <div className="space-y-4">
+              <PhoneVerificationInput
                 value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                maxLength={11}
+                onChange={setPhone}
+                onVerifiedChange={setIsPhoneVerified}
               />
             </div>
-            <Button className="w-full py-4 text-[16px]" onClick={handleLookup}>
+            <Button className="w-full py-4 text-[16px]" onClick={handleLookup} disabled={!isPhoneVerified}>
               조회하기
             </Button>
           </div>
@@ -144,7 +148,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                 selectedOrder.type === 'reserve' ? 'bg-blue-50 text-blue-600' :
                   selectedOrder.type === 'submission' ? 'bg-slate-100 text-slate-600' : 'bg-yellow-50 text-yellow-600'
               )}>
-                {selectedOrder.type === 'reserve' ? '예약판매' : selectedOrder.type === 'submission' ? '상품권 보내기' : '즉시판매'}
+                {selectedOrder.type === 'reserve' ? '선매입 신청' : selectedOrder.type === 'submission' ? '상품권 보내기' : '즉시판매'}
               </span>
               <span className="text-sm text-gray-500">
                 {new Date(selectedOrder.created_at).toLocaleDateString()}
@@ -195,14 +199,14 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
           {/* Reserve Specific Info */}
           {selectedOrder.type === 'reserve' && (
             <section className="space-y-4">
-              <h3 className="text-sm font-bold text-[#191F28] border-b border-gray-100 pb-2">예약 정보</h3>
+              <h3 className="text-sm font-bold text-[#191F28] border-b border-gray-100 pb-2">공급 정보</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-xs text-[#8B95A1] block mb-1">예약 희망일</span>
+                  <span className="text-xs text-[#8B95A1] block mb-1">공급 희망일</span>
                   <span className="text-sm font-medium text-[#333D4B]">{selectedOrder.expected_date || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-[#8B95A1] block mb-1">선지급금</span>
+                  <span className="text-xs text-[#8B95A1] block mb-1">선지금액</span>
                   <span className="text-sm font-bold text-[#0064FF]">{selectedOrder.deposit?.toLocaleString() || 0}원</span>
                 </div>
               </div>
@@ -301,7 +305,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                   <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${order.type === 'reserve' ? 'bg-blue-50 text-blue-600' :
                     order.type === 'submission' ? 'bg-slate-100 text-slate-600' : 'bg-yellow-50 text-yellow-600'
                     }`}>
-                    {order.type === 'reserve' ? '예약판매' : order.type === 'submission' ? '상품권 보내기' : '즉시판매'}
+                    {order.type === 'reserve' ? '선매입 신청' : order.type === 'submission' ? '상품권 보내기' : '즉시판매'}
                   </span>
                   <span className="text-xs text-[#8B95A1]">{displayDate}</span>
                 </div>
@@ -340,7 +344,7 @@ export const UserOrderHistory = ({ onBack }: UserOrderHistoryProps) => {
                         "text-[11px] mb-0.5 font-bold",
                         (isSubmitted) ? "text-gray-500" : "text-blue-500"
                       )}>
-                        {isReservationArrived ? `예약일 도래 (${displayDate})` : `예약일 (${displayDate})`}
+                        {isReservationArrived ? `공급일 도래 (${displayDate})` : `공급 예정일 (${displayDate})`}
                       </span>
                       {isSubmitted ? (
                         "상품권 전송이 완료되었습니다."

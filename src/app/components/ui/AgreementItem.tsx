@@ -3,6 +3,7 @@ import { Checkbox } from './TossComponents';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface AgreementItemProps {
     title: string;
@@ -15,19 +16,37 @@ interface AgreementItemProps {
 
 export const AgreementItem = ({ title, checked, onChange, className, content, defaultOpen = false }: AgreementItemProps) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
+    const [hasOpenedBefore, setHasOpenedBefore] = useState(defaultOpen);
+
+    const handleCheckboxChange = (isChecked: boolean) => {
+        if (!hasOpenedBefore && isChecked) {
+            setIsOpen(true);
+            setHasOpenedBefore(true);
+            toast('상세 내용을 확인하신 후 동의해 주세요.');
+            return;
+        }
+        onChange(isChecked);
+    };
+
+    const toggleOpen = () => {
+        setIsOpen(!isOpen);
+        if (!isOpen) {
+            setHasOpenedBefore(true);
+        }
+    };
 
     return (
         <div className={cn("space-y-2", className)}>
             <div className="flex items-center justify-between">
                 <Checkbox
                     checked={checked}
-                    onChange={(e) => onChange(e.target.checked)}
+                    onChange={(e) => handleCheckboxChange(e.target.checked)}
                     label={title}
                     className="flex-1 m-0 p-0 hover:bg-transparent"
                 />
                 <button
                     type="button"
-                    onClick={() => setIsOpen(!isOpen)}
+                    onClick={toggleOpen}
                     className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                     <ChevronDown className={cn("w-5 h-5 transition-transform", isOpen && "rotate-180")} />

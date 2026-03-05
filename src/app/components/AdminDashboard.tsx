@@ -33,7 +33,7 @@ const STATUS_COLORS = {
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  reserve: '예약 매입',
+  reserve: '선매입',
   instant: '즉시 매입',
   submission: '상품권 제출',
 };
@@ -85,7 +85,7 @@ const RateManagement = () => {
         <Card className="p-0 overflow-hidden bg-white border-none shadow-sm">
           <div className="p-4 border-b border-gray-100 bg-blue-50/50">
             <h3 className="font-bold text-[#0064FF] flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4" /> 예약 매입
+              <CalendarIcon className="w-4 h-4" /> 선매입
             </h3>
           </div>
           <div className="p-4 space-y-4">
@@ -96,6 +96,7 @@ const RateManagement = () => {
                   <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-1.5">
                     <input
                       type="number"
+                      step="0.1"
                       value={item.rate}
                       onChange={(e) => handleRateChange(item.id, e.target.value)}
                       className="w-12 text-right font-bold text-[#191F28] outline-none"
@@ -122,6 +123,7 @@ const RateManagement = () => {
                   <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-1.5">
                     <input
                       type="number"
+                      step="0.1"
                       value={item.rate}
                       onChange={(e) => handleRateChange(item.id, e.target.value)}
                       className="w-12 text-right font-bold text-[#191F28] outline-none"
@@ -180,7 +182,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
     try {
       await db.updateAdminSetting('reservation_date', dateInput);
       onDateChange(dateInput);
-      toast.success(`예약일이 ${dateInput}로 변경되었습니다.`);
+      toast.success(`공급 예정일이 ${dateInput}로 변경되었습니다.`);
     } catch (error) {
       console.error('Date update failed:', error);
       toast.error('변경 중 오류가 발생했습니다.');
@@ -293,7 +295,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
         </div>
 
         <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm shrink-0">
-          <div className="pl-3 pr-2 text-sm font-medium text-[#4E5968] whitespace-nowrap">예약 기준일</div>
+          <div className="pl-3 pr-2 text-sm font-medium text-[#4E5968] whitespace-nowrap">공급 예정일</div>
           <div className="h-4 w-[1px] bg-gray-200" />
           <Popover>
             <PopoverTrigger asChild>
@@ -358,10 +360,12 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                 <th className="p-4 pl-6 text-left">주문번호</th>
                 <th className="p-4 text-left">유형</th>
                 <th className="p-4 text-left">상품명</th>
-                <th className="p-4 text-left">예약일</th>
+                <th className="p-4 text-left">공급 예정일</th>
                 <th className="p-4 text-left">신청자</th>
                 <th className="p-4 text-left">연락처</th>
                 <th className="p-4 text-left">금액</th>
+                <th className="p-4 text-left">은행명</th>
+                <th className="p-4 text-left">계좌번호</th>
                 {showVoucherStatus && <th className="p-4 text-left">상품권등록</th>}
                 <th className="p-4 text-left">상태</th>
                 <th className="p-4 pr-6 text-left">관리</th>
@@ -370,7 +374,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
             <tbody className="text-left text-[14px] text-[#333D4B] divide-y divide-gray-50">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={showVoucherStatus ? 10 : 9} className="p-10 text-center text-gray-400">
+                  <td colSpan={showVoucherStatus ? 12 : 11} className="p-10 text-center text-gray-400">
                     주문 내역이 없습니다.
                   </td>
                 </tr>
@@ -401,6 +405,8 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
                     </td>
                     <td className="p-4 text-gray-500 text-[13px] text-left">{order.phone || '-'}</td>
                     <td className="p-4 font-bold text-left">{order.amount.toLocaleString()}원</td>
+                    <td className="p-4 text-gray-500 text-[13px] text-left">{order.bank_name || '-'}</td>
+                    <td className="p-4 text-gray-500 text-[13px] text-left">{order.account_number || '-'}</td>
 
                     {showVoucherStatus && (
                       <td className="p-4 text-left">
@@ -577,11 +583,11 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
               {selectedOrder.type === 'reserve' && (
                 <section>
                   <h4 className="text-sm font-bold text-[#191F28] mb-3 flex items-center gap-2">
-                    <span className="w-1 h-4 bg-[#0064FF] rounded-full" /> 예약 정보
+                    <span className="w-1 h-4 bg-[#0064FF] rounded-full" /> 공급 정보
                   </h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-[#F9FAFB] p-4 rounded-xl">
-                      <span className="text-xs text-[#8B95A1] block mb-1">예약 희망일</span>
+                      <span className="text-xs text-[#8B95A1] block mb-1">공급 희망일</span>
                       <span className="text-sm font-bold text-[#333D4B]">{selectedOrder.expected_date || '-'}</span>
                     </div>
                     <div className="bg-[#F9FAFB] p-4 rounded-xl">
@@ -800,7 +806,7 @@ const TermsManagement = () => {
         {/* Reserve (Dynamic) */}
         <div className="space-y-4">
           <div className="flex justify-between items-center border-l-4 border-[#0064FF] pl-3">
-            <h3 className="text-lg font-bold text-[#333D4B]">예약 판매</h3>
+            <h3 className="text-lg font-bold text-[#333D4B]">선매입</h3>
             <Button onClick={addReserveItem} className="flex items-center gap-1 text-[#0064FF] border border-[#0064FF] bg-white hover:bg-[#E8F3FF] h-9 px-3 text-sm rounded-lg">
               <Plus size={14} /> 약관 추가
             </Button>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader, Input, Button, Card } from './ui/TossComponents';
 import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
 import { AgreementItem } from './ui/AgreementItem';
-import { Plus, X } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useRates, useTerms, useUserOrders } from '@/lib/useMockData';
@@ -16,7 +16,7 @@ interface ReserveBuybackProps {
 }
 
 export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps) => {
-  const [voucherType, setVoucherType] = useState('lotte');
+  const [voucherType, setVoucherType] = useState('lotte_tomorrow');
   const [amount, setAmount] = useState<number | null>(null);
 
   // Data Hooks
@@ -27,9 +27,9 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   // Step 2 State - Form
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
-  const [email, setEmail] = useState('');
-  const [idCardFiles, setIdCardFiles] = useState<File[]>([]);
-  const [bankFiles, setBankFiles] = useState<File[]>([]);
+  const [email] = useState('');
+  const [idCardFiles] = useState<File[]>([]);
+  const [bankFiles] = useState<File[]>([]);
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
 
@@ -64,29 +64,20 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   // Constants & Calculations
   // Find rate based on selected type
   const getRateName = (type: string) => {
-    if (type === 'lotte') return '롯데';
-    if (type === 'shinsegae_emart') return '이마트'; // or check specific name in DB
+    if (type.includes('lotte')) return '롯데';
     return '';
   };
 
   const rateObj = rates.find(r => r.type === 'reserve' && r.name.includes(getRateName(voucherType)));
   // Default rates if DB fetch fails or not found
-  const defaultRate = voucherType === 'lotte' ? 0.8 : 0.8;
+  const defaultRate = 0.8;
   const RATE = rateObj ? rateObj.rate / 100 : defaultRate;
   const RATE_PERCENT = rateObj ? rateObj.rate : (defaultRate * 100);
 
   const faceValue = amount || 0;
-  const deposit = faceValue * RATE;
+  const deposit = Math.round(faceValue * RATE);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setFiles: React.Dispatch<React.SetStateAction<File[]>>) => {
-    if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files || [])]);
-    }
-  };
 
-  const removeFile = (index: number, files: File[], setFiles: React.Dispatch<React.SetStateAction<File[]>>) => {
-    setFiles(files.filter((_, i) => i !== index));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +89,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
     //if (idCardFiles.length === 0) return toast.error("신분증을 첨부해주세요.");
     //if (bankFiles.length === 0) return toast.error("통장사본을 첨부해주세요.");
-    //if (!bankName || !accountNumber) return toast.error("계좌 정보를 입력해주세요.");
+    if (!bankName || !accountNumber) return toast.error("계좌 정보를 입력해주세요.");
 
 
     if (!areAllTermsChecked()) return toast.error("모든 필수 약관에 동의해주세요.");
@@ -116,7 +107,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       })).filter(t => checkedTerms[t.id]?.checked) || [];
 
       await addOrder({
-        name: voucherType === 'lotte' ? '롯데 모바일' : '신세계 이마트전용',
+        name: voucherType === 'lotte_tomorrow' ? '롯데 모바일 익일' : '롯데 모바일 예약',
         amount: faceValue,
         deposit: deposit,
         expected_date: availableDate,
@@ -125,11 +116,11 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         applicant_name: name,
         bank_name: bankName,
         account_number: accountNumber,
-        email: email,
+        ...(email ? { email } : {}),
         type: 'reserve',
         rate: RATE_PERCENT,
-        id_card_image: idCardUrl,
-        bank_book_image: bankBookUrl,
+        ...(idCardUrl ? { id_card_image: idCardUrl } : {}),
+        ...(bankBookUrl ? { bank_book_image: bankBookUrl } : {}),
         is_my_order: true,
         term_agreements: termAgreements
       });
@@ -166,7 +157,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
           exit={{ opacity: 0, x: 20 }}
           className="space-y-6"
         >
-          <PageHeader title="예약판매 신청" description={`현재 시세 ${RATE_PERCENT}% 로 매입하고 있어요.`} />
+          <PageHeader title="선매입 신청" description={`현재 시세 ${RATE_PERCENT}% 로 매입하고 있어요.`} />
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Voucher Type */}
@@ -174,11 +165,11 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">상품권 종류</label>
               <div className="flex gap-2">
                 {[
-                  { id: 'lotte', label: '롯데 모바일' },
-                  { id: 'shinsegae_emart', label: '신세계 이마트전용' }
+                  { id: 'lotte_tomorrow', label: '유형 A: 익일 공급형' },
+                  { id: 'lotte_custom', label: '유형 B: 예약 공급형' }
                 ].map((item) => {
                   // Calculate rate for this item
-                  const itemRateName = item.id === 'lotte' ? '롯데' : '이마트';
+                  const itemRateName = item.id.includes('lotte') ? '롯데' : '이마트';
                   // Fallback to default if not found in rates array
                   const foundRate = rates.find(r => r.type === 'reserve' && r.name.includes(itemRateName));
                   const rateValue = foundRate ? foundRate.rate : 80;
@@ -207,34 +198,28 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
             {/* User Inputs */}
             <Card className="space-y-4">
-              <Input
-                label="성함"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="성함을 입력해주세요"
-              />
-              {/*
               <div className="flex gap-2">
                 <div className="w-[30%]">
                   <Input
-                    label="은행명"
+                    placeholder="은행명"
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
-                    placeholder="은행"
                   />
                 </div>
                 <div className="flex-1">
                   <Input
-                    label="계좌번호"
+                    placeholder="계좌번호"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
-                    placeholder="계좌번호를 입력해주세요"
                   />
                 </div>
               </div>
-              */}
+              <Input
+                placeholder="이름"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
               <PhoneVerificationInput
-                label="연락처"
                 value={contact}
                 onChange={setContact}
                 onVerifiedChange={setIsPhoneVerified}
@@ -257,7 +242,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   }
                 }}
               />
-              <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 카카오톡을 통해 문의주세요</label>
+              <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 연락처를 통해 문의주세요</label>
             </Card>
 
             {/* Amount Selection */}
@@ -363,7 +348,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               </div>            
             </Card>
             */}
-            
+
             {/* Final Agreements */}
             <Card className="bg-[#F9FAFB] border-none p-6 rounded-[24px] space-y-4">
               <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mb-4">
@@ -373,13 +358,14 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               </div>
 
               {terms?.reserve?.items && terms.reserve.items.length > 0 ? (
-                terms.reserve.items.map((item) => (
+                terms.reserve.items.map((item, index) => (
                   <AgreementItem
                     key={item.id}
                     title={`[${item.required ? '필수' : '선택'}] ${item.title}`}
                     checked={checkedTerms[item.id]?.checked || false}
                     onChange={(checked) => toggleTerm(item.id, checked)}
                     content={item.content}
+                    defaultOpen={index === 0}
                   />
                 ))
               ) : (
@@ -403,7 +389,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
             <div className="flex gap-3">
               <Button fullWidth type="submit" disabled={!areAllTermsChecked() || isSubmitting || !amount}>
-                {isSubmitting ? "처리 중..." : "예약 신청하기"}
+                {isSubmitting ? "처리 중..." : "선매입 신청하기"}
               </Button>
             </div>
           </form>

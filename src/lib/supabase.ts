@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { compressImage } from './imageCompression';
+import { encryptData, decryptData } from './encryption';
 
 const supabaseUrl = 'https://azrkfvmvlqodeovktvyw.supabase.co';
 const supabaseAnonKey = 'sb_publishable_kLx07AKgvmwHMlNVMdNvHw_M9t2kp25';
@@ -108,7 +109,18 @@ export const db = {
             .range(from, to);
 
         if (error) throw error;
-        return { data: data as Order[], count: count || 0 };
+
+        // Decrypt sensitive fields
+        const decryptedData = (data as Order[]).map(order => ({
+            ...order,
+            phone: decryptData(order.phone),
+            applicant_name: decryptData(order.applicant_name),
+            email: decryptData(order.email),
+            bank_name: decryptData(order.bank_name),
+            account_number: decryptData(order.account_number),
+        }));
+
+        return { data: decryptedData, count: count || 0 };
     },
 
     async getUserOrders(phone?: string) {
@@ -124,11 +136,27 @@ export const db = {
         const { data, error } = await query;
         if (error) throw error;
 
-        return (data as Order[]).map(o => ({ ...o, is_my_order: true }));
+        // Decrypt sensitive fields
+        return (data as Order[]).map(o => ({
+            ...o,
+            is_my_order: true,
+            phone: decryptData(o.phone),
+            applicant_name: decryptData(o.applicant_name),
+            email: decryptData(o.email),
+            bank_name: decryptData(o.bank_name),
+            account_number: decryptData(o.account_number),
+        }));
     },
 
     async addOrder(order: Partial<Order>) {
         const { is_my_order, id, created_at, updated_at, ...payload } = order;
+
+        // Encrypt sensitive fields
+        if (payload.phone) payload.phone = encryptData(payload.phone);
+        if (payload.applicant_name) payload.applicant_name = encryptData(payload.applicant_name);
+        if (payload.email) payload.email = encryptData(payload.email);
+        if (payload.bank_name) payload.bank_name = encryptData(payload.bank_name);
+        if (payload.account_number) payload.account_number = encryptData(payload.account_number);
 
         const { data, error } = await supabase
             .from('orders')
@@ -137,19 +165,45 @@ export const db = {
             .single();
 
         if (error) throw error;
-        return data as Order;
+
+        const newOrder = data as Order;
+        return {
+            ...newOrder,
+            phone: decryptData(newOrder.phone),
+            applicant_name: decryptData(newOrder.applicant_name),
+            email: decryptData(newOrder.email),
+            bank_name: decryptData(newOrder.bank_name),
+            account_number: decryptData(newOrder.account_number),
+        };
     },
 
     async updateOrder(id: string, updates: Partial<Order>) {
+        // Encrypt sensitive fields if they are being updated
+        const payload = { ...updates };
+        if (payload.phone) payload.phone = encryptData(payload.phone);
+        if (payload.applicant_name) payload.applicant_name = encryptData(payload.applicant_name);
+        if (payload.email) payload.email = encryptData(payload.email);
+        if (payload.bank_name) payload.bank_name = encryptData(payload.bank_name);
+        if (payload.account_number) payload.account_number = encryptData(payload.account_number);
+
         const { data, error } = await supabase
             .from('orders')
-            .update({ ...updates, updated_at: new Date().toISOString() })
+            .update({ ...payload, updated_at: new Date().toISOString() })
             .eq('id', id)
             .select()
             .single();
 
         if (error) throw error;
-        return data as Order;
+
+        const updatedOrder = data as Order;
+        return {
+            ...updatedOrder,
+            phone: decryptData(updatedOrder.phone),
+            applicant_name: decryptData(updatedOrder.applicant_name),
+            email: decryptData(updatedOrder.email),
+            bank_name: decryptData(updatedOrder.bank_name),
+            account_number: decryptData(updatedOrder.account_number),
+        };
     },
 
     async deleteOrder(id: string) {
@@ -269,5 +323,23 @@ export const db = {
             .getPublicUrl(fileName);
 
         return data.publicUrl;
+    },
+
+    // eSignon Integration
+    async createEsignonLink(orderDetails: any) {
+        const { data, error } = await supabase.functions.invoke('create-esignon-link', {
+            body: { orderDetails }
+        });
+
+        if (error) {
+            console.error('Edge Function Error:', error);
+            throw new Error(error.message || 'eSignon 링크 생성 호출에 실패했습니다.');
+        }
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        return data.contractUrl;
     }
 };
