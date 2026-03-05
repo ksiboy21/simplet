@@ -89,7 +89,7 @@ const RateManagement = () => {
             </h3>
           </div>
           <div className="p-4 space-y-4">
-            {localRates.filter(r => r.type === 'reserve' && !r.name.includes('신세계') && !r.name.includes('이마트')).map(item => (
+            {localRates.filter(r => r.type === 'reserve' && !r.name.includes('이마트')).map(item => (
               <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <span className="font-medium text-[#333D4B]">{item.name}</span>
                 <div className="flex items-center gap-3">

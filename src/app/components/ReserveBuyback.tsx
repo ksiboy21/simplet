@@ -15,7 +15,7 @@ interface ReserveBuybackProps {
 }
 
 export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps) => {
-  const [voucherType, setVoucherType] = useState('lotte_tomorrow');
+  const voucherType = 'lotte_tomorrow';
   const [amount, setAmount] = useState<number | null>(null);
 
   // Data Hooks
@@ -88,7 +88,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
   const calculateTotal = (val: number | null) => {
     if (!val) return { deposit: 0, balance: 0, apply_rate: 0 };
-    const buybackRate = rates.find(r => r.type === 'reserve' && r.name.includes(voucherType === 'lotte_custom' ? '이마트' : '롯데'))?.rate || 80;
+    const buybackRate = rates.find(r => r.type === 'reserve' && r.name.includes('롯데'))?.rate || 80;
     const finalVal = val * (buybackRate / 100);
     return { deposit: finalVal, balance: 0, apply_rate: buybackRate };
   };
@@ -174,7 +174,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       })).filter(t => checkedTerms[t.id]?.checked) || [];
 
       pendingOrderRef.current = {
-        name: voucherType === 'lotte_tomorrow' ? '롯데 모바일 익일' : '롯데 모바일 예약',
+        name: '롯데 모바일 익일',
         amount: faceValue,
         deposit,
         expected_date: availableDate,
@@ -274,39 +274,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
           <PageHeader title="선매입 신청" description={`현재 시세 ${RATE_PERCENT}% 로 매입하고 있어요.`} />
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Voucher Type */}
-            <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">상품권 종류</label>
-              <div className="flex gap-2">
-                {[
-                  { id: 'lotte_tomorrow', label: '유형 A: 익일 공급형' },
-                  { id: 'lotte_custom', label: '유형 B: 예약 공급형' }
-                ].map((item) => {
-                  const itemRateName = item.id.includes('lotte') ? '롯데' : '이마트';
-                  const foundRate = rates.find(r => r.type === 'reserve' && r.name.includes(itemRateName));
-                  const rateValue = foundRate ? foundRate.rate : 80;
-
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setVoucherType(item.id)}
-                      className={cn(
-                        "flex-1 h-12 rounded-[16px] font-medium text-[13px] transition-all border whitespace-nowrap flex flex-col items-center justify-center leading-none gap-1",
-                        voucherType === item.id
-                          ? "bg-[#E8F3FF] border-[#0064FF] text-[#0064FF]"
-                          : "bg-white border-transparent text-[#4E5968] hover:bg-gray-50"
-                      )}
-                    >
-                      <span>{item.label}</span>
-                      <span className={cn("text-[11px]", voucherType === item.id ? "text-[#0064FF]" : "text-[#8B95A1]")}>
-                        {rateValue}%
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* User Inputs */}
             <Card className="space-y-4">
