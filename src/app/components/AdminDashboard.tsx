@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import { Button, Card, Input } from './ui/TossComponents';
-import { Search, Calendar as CalendarIcon, BarChart3, ShoppingCart, FileText, Settings, LogOut, Save, ArrowLeft, Download, Plus, Trash2 } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, BarChart3, ShoppingCart, FileText, Settings, LogOut, Save, ArrowLeft, Download, Plus, Trash2, Copy, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Calendar } from './ui/calendar';
@@ -178,6 +178,36 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
 
 
 
+  const [todayCode, setTodayCode] = useState('');
+
+  // 마운트 시 기존 코드 불러오기
+  useEffect(() => {
+    db.getAdminSetting('daily_code').then(code => {
+      if (code) setTodayCode(code);
+    }).catch(console.error);
+  }, []);
+
+  // 새 코드 생성 (버튼 클릭 시에만)
+  const handleRefreshCode = async () => {
+    const newCode = String(Math.floor(100000 + Math.random() * 900000));
+    try {
+      await db.updateAdminSetting('daily_code', newCode);
+      setTodayCode(newCode);
+      toast.success(`새 확인코드가 발급되었습니다: ${newCode}`);
+    } catch {
+      toast.error('코드 갱신 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(todayCode);
+      toast.success(`확인코드 ${todayCode} 가 복사되었습니다.`);
+    } catch {
+      toast.error('복사에 실패했습니다.');
+    }
+  };
+
   const handleDateUpdate = async () => {
     try {
       await db.updateAdminSetting('reservation_date', dateInput);
@@ -294,7 +324,32 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
           <p className="text-[#8B95A1] text-sm mt-1">접수된 주문 내역을 확인하고 처리합니다.</p>
         </div>
 
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm shrink-0">
+        <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+          {/* 오늘의 확인코드 */}
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
+            <div className="pl-3 pr-2 text-sm font-medium text-[#4E5968] whitespace-nowrap">오늘의 확인코드</div>
+            <div className="h-4 w-[1px] bg-gray-200" />
+            <span className="px-2 py-1 text-sm font-bold text-[#0064FF] tracking-widest font-mono">
+              {todayCode || '생성 중...'}
+            </span>
+            <button
+              onClick={handleRefreshCode}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              title="새 코드 발급"
+            >
+              <RefreshCw size={14} className="text-gray-400" />
+            </button>
+            <button
+              onClick={handleCopyCode}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              title="복사"
+            >
+              <Copy size={14} className="text-gray-400" />
+            </button>
+          </div>
+
+          {/* 공급 예정일 */}
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
           <div className="pl-3 pr-2 text-sm font-medium text-[#4E5968] whitespace-nowrap">공급 예정일</div>
           <div className="h-4 w-[1px] bg-gray-200" />
           <Popover>
@@ -321,6 +376,7 @@ const OrderManagement = ({ currentDate, onDateChange }: { currentDate: string, o
           >
             적용
           </button>
+          </div>
         </div>
       </div>
 

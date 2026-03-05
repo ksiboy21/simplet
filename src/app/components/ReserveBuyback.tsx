@@ -35,6 +35,24 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 확인코드 검증 State
+  const [verifyCode, setVerifyCode] = useState('');
+  const [isCodeVerified, setIsCodeVerified] = useState(false);
+
+  const handleVerifyCode = async () => {
+    try {
+      const savedCode = await db.getAdminSetting('daily_code');
+      if (savedCode && verifyCode === savedCode) {
+        setIsCodeVerified(true);
+        toast.success('확인 코드가 인증되었습니다.');
+      } else {
+        toast.error('확인 코드가 올바르지 않습니다.');
+      }
+    } catch {
+      toast.error('코드 확인 중 오류가 발생했습니다.');
+    }
+  };
+
   // 서명 대기 모달 State
   const [showWaitModal, setShowWaitModal] = useState(false);
   const [workflowId, setWorkflowId] = useState<number | null>(null);
@@ -120,6 +138,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
     if (!isPhoneVerified) return toast.error("연락처 인증을 완료해주세요.");
+    if (!isCodeVerified) return toast.error("확인 코드 인증을 완료해주세요.");
     if (!bankName || !accountNumber) return toast.error("계좌 정보를 입력해주세요.");
     if (!areAllTermsChecked()) return toast.error("모든 필수 약관에 동의해주세요.");
 
@@ -335,7 +354,36 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
                   }
                 }}
               />
-              <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 연락처를 통해 문의주세요</label>
+              {/* 확인 코드 */}
+              <div className="space-y-2">
+                <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">확인 코드</label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="확인 코드 6자리 입력"
+                    value={verifyCode}
+                    onChange={(e) => { setVerifyCode(e.target.value); setIsCodeVerified(false); }}
+                    disabled={isCodeVerified}
+                    className="flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyCode}
+                    disabled={isCodeVerified || verifyCode.length === 0}
+                    className={cn(
+                      "px-4 py-2 rounded-[16px] text-sm font-bold whitespace-nowrap transition-colors",
+                      isCodeVerified
+                        ? "bg-green-100 text-green-600"
+                        : "bg-[#0064FF] text-white hover:bg-[#0050CC] disabled:opacity-50"
+                    )}
+                  >
+                    {isCodeVerified ? "인증완료" : "확인"}
+                  </button>
+                </div>
+                {isCodeVerified && (
+                  <p className="text-[12px] text-green-600 ml-1">✓ 확인 코드가 인증되었습니다.</p>
+                )}
+              </div>
+              <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">확인코드 확인을 위해 메인화면 연락처를 통해 문의주세요</label>
             </Card>
 
             {/* Amount Selection */}
@@ -413,7 +461,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
             </Card>
 
             <div className="flex gap-3">
-              <Button fullWidth type="submit" disabled={!areAllTermsChecked() || isSubmitting || !amount}>
+              <Button fullWidth type="submit" disabled={!areAllTermsChecked() || isSubmitting || !amount || !isCodeVerified}>
                 {isSubmitting ? "처리 중..." : "계약서 서명 후 신청하기"}
               </Button>
             </div>
