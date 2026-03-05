@@ -190,7 +190,7 @@ export const QuickBuyback = ({ onSuccess }: QuickBuybackProps) => {
             onChange={setPhoneNumber}
             onVerifiedChange={setIsPhoneVerified}
           />
-          <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 카카오톡을 통해 문의주세요</label>
+          <label className="text-[13px] font-semibold text-[#8B95A1] ml-1">신청 후 메인화면 연락처를 통해 문의주세요</label>
         </Card>
 
         {/* File Upload */}

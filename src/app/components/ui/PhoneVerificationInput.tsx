@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { sendSMS } from '@/lib/solapi';
 import { Input, Button } from './TossComponents';
 import { toast } from 'sonner';
@@ -17,8 +17,51 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
   const [inputCode, setInputCode] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
+  // Persist cooldown using sessionStorage
+  useEffect(() => {
+    const savedEnd = sessionStorage.getItem('phone_cooldown_end');
+    if (savedEnd) {
+      const remaining = Math.ceil((parseInt(savedEnd) - Date.now()) / 1000);
+      if (remaining > 0) {
+        setCooldown(remaining);
+        setIsSent(true);
+        startTimer();
+      } else {
+        sessionStorage.removeItem('phone_cooldown_end');
+      }
+    }
+
+    const savedCode = sessionStorage.getItem('phone_verify_code');
+    if (savedCode) {
+      setCode(savedCode);
+      setIsSent(true);
+    }
+  }, []);
+
+  const startTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          sessionStorage.removeItem('phone_cooldown_end');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleSend = async () => {
     if (!value || value.length < 10) return toast.error("올바른 연락처를 입력해주세요.");
@@ -28,9 +71,10 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
       if (!canProceed) return;
     }
 
-    // Bypass for test numbers (optional, keep for dev convenience if needed, or remove)
+    // Bypass for test numbers
     if (value === '01000000000') {
       setCode('123456');
+      sessionStorage.setItem('phone_verify_code', '123456');
       setIsSent(true);
       setIsVerified(false);
       onVerifiedChange(false);
@@ -42,6 +86,7 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
 
     const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
     setCode(generatedCode);
+    sessionStorage.setItem('phone_verify_code', generatedCode);
 
     try {
       await sendSMS(value, `[SimpleTicket] 인증번호 [${generatedCode}]를 입력해주세요.`);
@@ -52,17 +97,11 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
 
       toast.success("인증번호가 발송되었습니다.");
 
-      // Start cooldown
-      setCooldown(60); // 1 minute
-      const timer = setInterval(() => {
-        setCooldown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      // Start cooldown with sessionStorage persistence
+      const endTime = Date.now() + 60 * 1000;
+      sessionStorage.setItem('phone_cooldown_end', endTime.toString());
+      setCooldown(60);
+      startTimer();
     } catch (error: any) {
       console.error("SMS Send Failed:", error);
       toast.error(`문자 발송 실패: ${error.message || "알 수 없는 오류"}`);
@@ -73,6 +112,10 @@ export const PhoneVerificationInput = ({ value, onChange, onVerifiedChange, labe
     if (inputCode.trim() === code.toString()) {
       setIsVerified(true);
       onVerifiedChange(true);
+      sessionStorage.removeItem('phone_verify_code');
+      sessionStorage.removeItem('phone_cooldown_end');
+      if (timerRef.current) clearInterval(timerRef.current);
+      setCooldown(0);
       toast.success("인증이 완료되었습니다.");
     } else {
       toast.error("인증번호가 일치하지 않습니다.");
