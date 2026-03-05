@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader, Input, Button, Card } from './ui/TossComponents';
 import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
 import { AgreementItem } from './ui/AgreementItem';
-import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useRates, useTerms, useUserOrders } from '@/lib/useMockData';
@@ -37,7 +36,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // eSignon 서명 모달 State
-  const [showSignModal, setShowSignModal] = useState(false);
   const [isSigningInProgress, setIsSigningInProgress] = useState(false);
 
   // 서명 완료 콜백을 위한 ref (최신 order data snapshot 유지)
@@ -80,19 +78,18 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   // eSignon 서명 완료 콜백 리스너
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      // eSignon postMessage 콜백 처리
-      // 서명 완료 시: {"h":""} 형식 또는 특정 이벤트가 옴
-      // callback_fn=true 설정 시 닫기 버튼 클릭 시 콜백 수신
-      console.log('[eSignon callback]', event.origin, JSON.stringify(event.data));
+      console.log('[eSignon callback]', event.origin, event.data);
 
-      // eSignon 도메인에서 온 메시지만 처리
       if (!event.origin.includes('esignon.net')) return;
 
-      // eSignon이 보내는 완료 메시지 감지
-      // callback_fn=true 시 팝업의 닫기 버튼 클릭 → 부모창으로 메시지 전달
-      if (pendingOrderRef.current && isSigningInProgress) {
-        setIsSigningInProgress(false);
-        await submitOrder(pendingOrderRef.current);
+      const data = typeof event.data === 'string' ? event.data : JSON.stringify(event.data || {});
+
+      // 실제 eSignon 완료 콜백 감지 (esignon_sign_complete)
+      if (data.includes('complete') || data.includes('esignon_sign_complete')) {
+        if (pendingOrderRef.current && isSigningInProgress) {
+          setIsSigningInProgress(false);
+          await submitOrder(pendingOrderRef.current);
+        }
       }
     };
 
@@ -102,7 +99,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || isSigningInProgress) return;
     if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
@@ -112,7 +109,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
     setIsSubmitting(true);
     try {
-      // 중복 주문 체크: 진행 중인 선매입 주문이 있으면 신청 불가
+      // 중복 주문 체크
       const existingOrders = await db.getUserOrders(contact);
       const duplicate = existingOrders.find(o =>
         (o.status === '주문 확인중' || o.status === '예약일정 대기중') &&
@@ -124,7 +121,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         return;
       }
 
-      // 계약서에 미리 채울 주문 정보 준비
+      // 계약서 정보 준비
       const orderDetails = {
         applicant_name: name,
         phone: contact,
@@ -132,16 +129,15 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         deposit: deposit,
         rate: RATE_PERCENT,
         voucherType,
+        expected_date: availableDate,
       };
 
-      // 약관 동의 목록
       const termAgreements = terms?.reserve?.items?.map(item => ({
         id: item.id,
         title: item.title,
         agreedAt: checkedTerms[item.id]?.agreedAt || new Date().toISOString()
       })).filter(t => checkedTerms[t.id]?.checked) || [];
 
-      // 서명 완료 후 제출할 주문 데이터 저장
       pendingOrderRef.current = {
         name: voucherType === 'lotte_tomorrow' ? '롯데 모바일 익일' : '롯데 모바일 예약',
         amount: faceValue,
@@ -158,7 +154,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         term_agreements: termAgreements,
       };
 
-      // eSignon Edge Function 호출 → 서명 URL 획득
       const { data, error } = await supabase.functions.invoke('create-esignon-link', {
         body: { orderDetails }
       });
@@ -167,9 +162,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       if (data?.error) throw new Error(data.error);
       if (!data?.signUrl) throw new Error('서명 URL을 받지 못했습니다.');
 
-      // iframe 대신 팝업으로 열기 (eSignon은 X-Frame-Options으로 iframe 차단)
       setIsSigningInProgress(true);
-      setShowSignModal(true);
+
       const popup = window.open(
         data.signUrl,
         'esignon_sign',
@@ -178,33 +172,34 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
       if (!popup) {
         setIsSigningInProgress(false);
-        setShowSignModal(false);
+        setIsSubmitting(false);
         toast.error('팝업이 차단되었습니다. 브라우저에서 팝업 허용 후 다시 시도해주세요.');
         return;
       }
 
-      // 팝업이 닫힐 때를 감지 (postMessage 콜백이 없는 경우 대비)
+      // 팝업 닫힘 감지
       const checkPopupClosed = setInterval(() => {
         if (popup.closed) {
           clearInterval(checkPopupClosed);
-          // 팝업이 닫혔지만 아직 서명완료 처리 안 됐으면 모달은 열어두기
-          // (수동 완료 버튼으로 처리하도록)
+          // 팝업이 닫혔는데 여전히 서명 진행중 상태라면 (콜백을 못받은 경우)
+          if (isSigningInProgress) {
+            setIsSigningInProgress(false);
+            setIsSubmitting(false);
+            toast.info('전자서명 창이 닫혔습니다. 서명을 완료하지 않았다면 다시 시도해주세요.');
+          }
         }
       }, 500);
+
     } catch (error: any) {
       console.error('eSignon Error:', error);
       toast.error(`계약서 생성 실패: ${error.message}`);
-    } finally {
       setIsSubmitting(false);
     }
   };
 
   const submitOrder = async (orderData: any) => {
-    setIsSubmitting(true);
     try {
       await addOrder(orderData);
-
-      // 확인 SMS 발송
       try {
         await sendSMS(orderData.phone, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
       } catch (smsError) {
@@ -213,11 +208,10 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
       toast.success('선매입 신청이 완료되었습니다!');
       pendingOrderRef.current = null;
+      setIsSubmitting(false);
 
       if (onSuccess) {
         onSuccess();
-      } else {
-        setIsSubmitting(false);
       }
     } catch (error) {
       console.error('Order error:', error);
@@ -226,55 +220,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
-  // 서명 완료 버튼 (수동 완료 처리 - postMessage callback이 안 오는 경우 대비)
-  const handleManualComplete = async () => {
-    if (!pendingOrderRef.current) return;
-    setIsSigningInProgress(false);
-    setShowSignModal(false);
-    await submitOrder(pendingOrderRef.current);
-  };
-
   return (
     <div className="max-w-md mx-auto pb-20">
-      {/* eSignon 서명 진행 중 안내 모달 */}
-      {showSignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#191F28]">전자서명 진행 중</h2>
-              <button
-                onClick={() => { setShowSignModal(false); setIsSigningInProgress(false); }}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center">
-                <span className="text-3xl">📝</span>
-              </div>
-              <p className="text-[15px] font-medium text-[#191F28]">
-                팝업 창에서 계약서에 서명해주세요
-              </p>
-              <p className="text-[13px] text-[#8B95A1]">
-                서명 완료 후 아래 버튼을 눌러주세요.<br />
-                팝업이 열리지 않으면 브라우저 팝업 허용이 필요합니다.
-              </p>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <Button variant="secondary" fullWidth onClick={() => { setShowSignModal(false); setIsSigningInProgress(false); }}>
-                취소
-              </Button>
-              <Button fullWidth onClick={handleManualComplete}>
-                서명 완료했습니다
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <AnimatePresence mode="wait">
         <motion.div
           key="step2"

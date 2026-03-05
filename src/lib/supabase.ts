@@ -129,15 +129,14 @@ export const db = {
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (phone) {
-            query = query.eq('phone', phone);
-        }
+        // NOTE: phone은 암호화되어 저장되므로 DB 직접 eq 비교가 불가능.
+        // 따라서 전체 조회 후 복호화하여 메모리에서 필터링합니다.
 
         const { data, error } = await query;
         if (error) throw error;
 
         // Decrypt sensitive fields
-        return (data as Order[]).map(o => ({
+        let decryptedOrders = (data as Order[]).map(o => ({
             ...o,
             is_my_order: true,
             phone: decryptData(o.phone),
@@ -146,6 +145,12 @@ export const db = {
             bank_name: decryptData(o.bank_name),
             account_number: decryptData(o.account_number),
         }));
+
+        if (phone) {
+            decryptedOrders = decryptedOrders.filter(o => o.phone === phone);
+        }
+
+        return decryptedOrders;
     },
 
     async addOrder(order: Partial<Order>) {

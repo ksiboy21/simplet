@@ -76,6 +76,8 @@ serve(async (req) => {
                     { name: "상품권액면가", value: `${(orderDetails.amount || 0).toLocaleString()}원` },
                     { name: "물품대금", value: `${(orderDetails.deposit || 0).toLocaleString()}원` },
                     { name: "매입률", value: `${orderDetails.rate || 0}%` },
+                    { name: "Label_0", value: orderDetails.applicant_name || "" },
+                    { name: "DateTime_0", value: orderDetails.expected_date || "" },
                 ],
             }),
         });
@@ -86,10 +88,23 @@ serve(async (req) => {
             throw new Error(`계약서 생성 실패: ${JSON.stringify(workflowData)}`);
         }
 
-        // ③ 서명 URL 생성
+        // ③ 서명 URL(playing_url) 획득을 위해 문서 상세 조회
+        const detailRes = await fetch(`${ESIGNON_DOMAIN}/api/v3/workflows/${workflowData.workflow_id}`, {
+            method: "GET",
+            headers: {
+                "accept": "application/json",
+                "Authorization": `esignon ${accessToken}`,
+            },
+        });
+        const detailData = await detailRes.json();
+
+        if (!detailData?.playing_url) {
+            throw new Error("서명 진행 URL(playing_url)을 가져올 수 없습니다.");
+        }
+
         // callback_fn=true: 서명 완료 후 부모창으로 postMessage 전송
         // next_sign=false: 다음 문서 작성하기 버튼 제거
-        const signUrl = `${ESIGNON_DOMAIN}/api/${COMPANY_ID}/sign?token=${workflowData.token}&callback_fn=true&next_sign=false`;
+        const signUrl = `${detailData.playing_url}&callback_fn=true&next_sign=false`;
 
         return new Response(
             JSON.stringify({
