@@ -57,9 +57,9 @@ serve(async (req) => {
 
         const detailData = await detailRes.json();
 
-        // eSignon status types: WORKFLOW_START, SIGN_REQ, Playing, COMPLETE, REJECT, CANCEL
+        // eSignon status types: WORKFLOW_START, SIGN_REQ, Playing, Complete, REJECT, CANCEL
         const status = detailData?.status;
-        const isComplete = status === 'COMPLETE';
+        const isComplete = status === 'COMPLETE' || status === 'Complete';
 
         return new Response(
             JSON.stringify({
