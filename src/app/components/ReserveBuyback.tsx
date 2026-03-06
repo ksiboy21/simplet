@@ -59,21 +59,21 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const [contractUrl, setContractUrl] = useState<string | null>(null);
   const pendingOrderRef = useRef<any>(null);
 
-  // 컴포넌트 마운트 시 sessionStorage에서 대기 중인 주문 복원
+  // 컴포넌트 마운트 시 localStorage에서 대기 중인 주문 복원
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem(PENDING_ORDER_KEY);
+      const saved = localStorage.getItem(PENDING_ORDER_KEY);
       if (saved) {
         const { workflowId: savedWfId, contractUrl: savedUrl, orderData } = JSON.parse(saved);
         if (savedWfId && orderData) {
           pendingOrderRef.current = orderData;
           setWorkflowId(savedWfId);
           setContractUrl(savedUrl || 'restored');
-          console.log('Restored pending order from sessionStorage:', savedWfId);
+          console.log('Restored pending order from localStorage:', savedWfId);
         }
       }
     } catch (e) {
-      console.error('sessionStorage restore error:', e);
+      console.error('localStorage restore error:', e);
     }
   }, []);
 
@@ -219,8 +219,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       setContractUrl(data.signUrl);
       setWorkflowId(data.workflowId);
 
-      // sessionStorage에 저장 (페이지 이탈 대비)
-      sessionStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({
+      // localStorage에 저장 (페이지 이탈 대비)
+      localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({
         workflowId: data.workflowId,
         contractUrl: data.signUrl,
         orderData: pendingOrderRef.current,
@@ -246,7 +246,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
       toast.success('계약서 서명이 완료되어 주문이 접수되었습니다!');
       pendingOrderRef.current = null;
-      sessionStorage.removeItem(PENDING_ORDER_KEY);
+      localStorage.removeItem(PENDING_ORDER_KEY);
     } catch (error) {
       console.error('Order error:', error);
       toast.error("주문 처리 중 오류가 발생했습니다.");
