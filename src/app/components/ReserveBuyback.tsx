@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader, Input, Button, Card } from './ui/TossComponents';
 import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
@@ -53,12 +53,10 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
-  // 서명 대기 모달 State (unused but kept for reference)
-  // const [showWaitModal, setShowWaitModal] = useState(false);
-  // const [workflowId, setWorkflowId] = useState<number | null>(null);
-
-  // 서명 완료 콜백을 위한 ref
-  // const pendingOrderRef = useRef<any>(null);
+  // 서명 완료 대기 State
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [contractUrl, setContractUrl] = useState<string | null>(null);
+  const pendingOrderRef = useRef<any>(null);
 
   // Dynamic Terms State
   type TermState = { checked: boolean; agreedAt?: string };
@@ -72,7 +70,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   // 필수 약관 모두 동의 여부
   const areAllTermsChecked = () => {
     if (!terms?.reserve?.items) return false;
-    // 필수 약관 항목들이 모두 checkedTerms에 포함되고 값이 true여야 함
     return terms.reserve.items.every(item => checkedTerms[item.id]?.checked);
   };
 
@@ -101,12 +98,37 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const faceValue = amount || 0;
   const { deposit, apply_rate: RATE_PERCENT } = calculateTotal(amount);
 
-  // 신청 완료 후 계약서 URL 저장
-  const [contractUrl, setContractUrl] = useState<string | null>(null);
+  // eSignon 서명 상태 폴링 리스너
+  useEffect(() => {
+    let checkInterval: NodeJS.Timeout;
+
+    if (contractUrl && workflowId) {
+      checkInterval = setInterval(async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('check-esignon-status', {
+            body: { workflowId }
+          });
+
+          if (!error && data?.isComplete) {
+            clearInterval(checkInterval);
+            if (pendingOrderRef.current) {
+              await submitOrder(pendingOrderRef.current);
+            }
+          }
+        } catch (e) {
+          console.error("Status check error", e);
+        }
+      }, 3000); // 3초마다 상태 확인
+    }
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [contractUrl, workflowId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || contractUrl) return;
     if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
@@ -136,7 +158,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         amount: faceValue,
         deposit: deposit,
         rate: RATE_PERCENT,
-        reserveRateB: getReserveRate('lotte_custom'), // 유형 B 매입 시세
+        reserveRateB: getReserveRate('lotte_custom'),
         bank_name: bankName,
         account_number: accountNumber,
         voucherType,
@@ -149,16 +171,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         agreedAt: checkedTerms[item.id]?.agreedAt || new Date().toISOString()
       })).filter(t => checkedTerms[t.id]?.checked) || [];
 
-      // eSignon 계약서 생성
-      const { data, error } = await supabase.functions.invoke('create-esignon-link', {
-        body: { orderDetails }
-      });
-
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-
-      // 주문 즉시 등록
-      const orderData = {
+      // 서명 완료 후 저장할 주문 데이터 준비 (아직 DB 저장 안함)
+      pendingOrderRef.current = {
         name: voucherType === 'lotte_tomorrow' ? '롯데 모바일 익일' : '롯데 모바일 예약',
         amount: faceValue,
         deposit,
@@ -174,17 +188,17 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         term_agreements: termAgreements,
       };
 
-      await addOrder(orderData);
+      // eSignon 계약서 생성
+      const { data, error } = await supabase.functions.invoke('create-esignon-link', {
+        body: { orderDetails }
+      });
 
-      // SMS 발송
-      try {
-        await sendSMS(contact, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
-      } catch (smsError) {
-        console.error('SMS 발송 실패:', smsError);
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
-      // 계약서 URL 저장 → 완료 화면 표시
+      // 계약서 URL + 워크플로우 ID 저장 → 완료 화면 표시 + 백그라운드 폴링 시작
       setContractUrl(data.signUrl);
+      setWorkflowId(data.workflowId);
 
     } catch (error: any) {
       console.error('eSignon Error:', error);
@@ -194,7 +208,25 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
-  // 신청 완료 화면
+  // 서명 완료 후 주문 등록
+  const submitOrder = async (orderData: any) => {
+    try {
+      await addOrder(orderData);
+      try {
+        await sendSMS(orderData.phone, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
+      } catch (smsError) {
+        console.error('SMS 발송 실패:', smsError);
+      }
+
+      toast.success('계약서 서명이 완료되어 주문이 접수되었습니다!');
+      pendingOrderRef.current = null;
+    } catch (error) {
+      console.error('Order error:', error);
+      toast.error("주문 처리 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 신청 완료 + 서명 대기 화면
   if (contractUrl) {
     return (
       <div className="max-w-md mx-auto pb-20">
@@ -208,6 +240,9 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
             <p className="text-[15px] text-[#4E5968] leading-relaxed">
               아래 버튼을 눌러 <span className="text-[#3182F6] font-semibold">전자계약서 작성</span>을 진행해주세요.<br />
               카카오톡으로도 계약서 링크가 발송되었습니다.
+            </p>
+            <p className="text-[13px] text-[#8B95A1] mt-2">
+              계약서 서명이 완료되면 자동으로 주문이 접수됩니다.
             </p>
           </div>
 
@@ -223,6 +258,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
           <button
             onClick={() => {
               setContractUrl(null);
+              setWorkflowId(null);
+              pendingOrderRef.current = null;
               if (onSuccess) onSuccess();
             }}
             className="text-[14px] text-[#8B95A1] underline mt-2"
@@ -438,6 +475,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
           </form>
         </motion.div>
       </AnimatePresence>
-    </div >
+    </div>
   );
 };
