@@ -63,12 +63,12 @@ serve(async (req) => {
             is_preview: false,
             recipient_list: [
                 {
-                    email: orderDetails.phone, // 휴대폰 번호 또는 이메일
-                    name: orderDetails.applicant_name,
+                    email: "01073767012", // 1번째 수신인 (고정)
+                    name: "심플티켓",
                     order: 1,
                 },
                 {
-                    email: orderDetails.phone, // 2번째 수신자도 동일 연락처
+                    email: orderDetails.phone, // 2번째 수신인 (고객 연락처)
                     name: orderDetails.applicant_name,
                     order: 2,
                 }
