@@ -56,10 +56,12 @@ serve(async (req) => {
         });
 
         const detailData = await detailRes.json();
+        console.log("eSignon status response:", JSON.stringify(detailData));
 
         // eSignon status types: WORKFLOW_START, SIGN_REQ, Playing, Complete, REJECT, CANCEL
-        const status = detailData?.status;
-        const isComplete = status === 'COMPLETE' || status === 'Complete';
+        const status = detailData?.status || detailData?.workflow_status;
+        const statusUpper = String(status || '').toUpperCase();
+        const isComplete = statusUpper === 'COMPLETE' || statusUpper === 'COMPLETED';
 
         return new Response(
             JSON.stringify({
@@ -72,8 +74,8 @@ serve(async (req) => {
     } catch (error) {
         console.error("eSignon Error:", error);
         return new Response(
-            JSON.stringify({ error: error.message }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 },
+            JSON.stringify({ error: error.message, isComplete: false }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
         );
     }
 });
