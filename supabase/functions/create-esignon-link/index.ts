@@ -70,6 +70,7 @@ serve(async (req) => {
                 {
                     email: orderDetails.phone, // 2번째 수신인 (고객 연락처)
                     name: orderDetails.applicant_name,
+                    mobile: orderDetails.phone, // 휴대폰 본인 인증
                     order: 2,
                 }
             ],
