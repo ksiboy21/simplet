@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const ESIGNON_DOMAIN = "https://docs.esignon.net";
-const COMPANY_ID = Deno.env.get("ESIGNON_COMPANY_ID") || "simpleticket";
+const COMPANY_ID = Deno.env.get("ESIGNON_COMPANY_ID") || "naver0ksiboy22";
 const MEMB_EMAIL = Deno.env.get("ESIGNON_EMAIL") || "ksiboy22@naver.com";
 const MEMB_PWD = Deno.env.get("ESIGNON_PWD") || "dkfqhd21!!";
 

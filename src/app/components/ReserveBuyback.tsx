@@ -168,6 +168,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         amount: faceValue,
         deposit: deposit,
         rate: RATE_PERCENT,
+        reserveRateB: getReserveRate('lotte_custom'), // 유형 B 매입 시세
         bank_name: bankName,
         account_number: accountNumber,
         voucherType,
