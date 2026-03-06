@@ -6,10 +6,10 @@ const corsHeaders = {
 };
 
 const ESIGNON_DOMAIN = "https://docs.esignon.net";
-const COMPANY_ID = "testapi2";
+const COMPANY_ID = "simpleticket";
 const MEMB_EMAIL = "ksiboy22@naver.com";
 const MEMB_PWD = "simple21!!";
-const TEMPLATE_ID = 737;
+const TEMPLATE_ID = 29;
 
 serve(async (req) => {
     if (req.method === "OPTIONS") {
