@@ -6,10 +6,10 @@ const corsHeaders = {
 };
 
 const ESIGNON_DOMAIN = "https://docs.esignon.net";
-const COMPANY_ID = "simpleticket";
-const MEMB_EMAIL = "ksiboy22@naver.com";
-const MEMB_PWD = "simple21!!";
-const TEMPLATE_ID = 29;
+const COMPANY_ID = Deno.env.get("ESIGNON_COMPANY_ID") || "simpleticket";
+const MEMB_EMAIL = Deno.env.get("ESIGNON_EMAIL") || "ksiboy22@naver.com";
+const MEMB_PWD = Deno.env.get("ESIGNON_PWD") || "dkfqhd21!!";
+const TEMPLATE_ID = Number(Deno.env.get("ESIGNON_TEMPLATE_ID")) || 29;
 
 serve(async (req) => {
     if (req.method === "OPTIONS") {
@@ -45,7 +45,7 @@ serve(async (req) => {
         const accessToken = tokenData.body.access_token;
 
         // ② 비대면 문서 시작 (계약서 생성)
-        const workflowName = `선매입 계약서 - ${orderDetails.applicant_name}`;
+        const workflowName = `심플티켓 선매입 계약서 - ${orderDetails.applicant_name}`;
         const now = new Date();
         const expiry = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3일 후
         const expiryStr = expiry.toISOString().replace("T", " ").substring(0, 19);
