@@ -24,7 +24,20 @@ export const useEsignonPolling = () => {
           body: { workflowId }
         });
 
-        if (!error && data?.isComplete) {
+        if (error) {
+          console.error("Global esignon polling error:", error);
+          return;
+        }
+
+        if (data?.isCanceled) {
+          console.log("eSignon signature canceled or rejected.");
+          toast.error("전자서명이 취소 또는 거절되었습니다.");
+          localStorage.removeItem(PENDING_ORDER_KEY);
+          window.dispatchEvent(new CustomEvent('esignon-canceled'));
+          return;
+        }
+
+        if (data?.isComplete) {
           isSubmittingRef.current = true; // 중복 제출 방지
           // 서명 완료
           await submitOrder(orderData);
@@ -56,7 +69,7 @@ export const useEsignonPolling = () => {
 
       toast.success('계약서 서명이 완료되어 주문이 접수되었습니다!');
       localStorage.removeItem(PENDING_ORDER_KEY);
-      
+
       // 예약 매입 서명 완료 시뮬레이션 이벤트 디스패치 (App.tsx 등에서 감지하여 화면 전환 처리)
       window.dispatchEvent(new CustomEvent('esignon-completed', { detail: orderData }));
     } catch (error) {

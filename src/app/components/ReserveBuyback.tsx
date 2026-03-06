@@ -10,10 +10,9 @@ import { db, supabase } from '@/lib/supabase';
 
 interface ReserveBuybackProps {
   availableDate: string; // YYYY-MM-DD from Admin
-  onSuccess?: () => void;
 }
 
-export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps) => {
+export const ReserveBuyback = ({ availableDate }: ReserveBuybackProps) => {
   const [voucherType, setVoucherType] = useState('lotte_tomorrow');
   const [amount, setAmount] = useState<number | null>(null);
 
@@ -68,6 +67,20 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     } catch (e) {
       console.error('localStorage restore error:', e);
     }
+  }, []);
+
+  // 전역 서명 이벤트(완료, 취소)가 발생하면 현재 폼 상태도 초기화
+  useEffect(() => {
+    const handleEsignonCompleteOrCancel = () => {
+      setContractUrl(null);
+    };
+
+    window.addEventListener('esignon-completed', handleEsignonCompleteOrCancel);
+    window.addEventListener('esignon-canceled', handleEsignonCompleteOrCancel);
+    return () => {
+      window.removeEventListener('esignon-completed', handleEsignonCompleteOrCancel);
+      window.removeEventListener('esignon-canceled', handleEsignonCompleteOrCancel);
+    };
   }, []);
 
   // Dynamic Terms State
@@ -219,14 +232,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              if (onSuccess) onSuccess();
-            }}
-            className="text-[14px] text-[#8B95A1] underline mt-2"
-          >
-            홈으로 돌아가기
-          </button>
+
         </div>
       </div>
     );

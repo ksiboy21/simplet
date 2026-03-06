@@ -62,19 +62,21 @@ serve(async (req) => {
         const status = detailData?.status || detailData?.workflow_status;
         const statusUpper = String(status || '').toUpperCase();
         const isComplete = statusUpper === 'COMPLETE' || statusUpper === 'COMPLETED';
+        const isCanceled = statusUpper === 'CANCEL' || statusUpper === 'CANCELED' || statusUpper === 'CANCELLED' || statusUpper === 'REJECT' || statusUpper === 'REJECTED';
 
         return new Response(
             JSON.stringify({
                 status,
                 isComplete,
+                isCanceled,
                 workflowId
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
-    } catch (error) {
+    } catch (error: any) {
         console.error("eSignon Error:", error);
         return new Response(
-            JSON.stringify({ error: error.message, isComplete: false }),
+            JSON.stringify({ error: error.message, isComplete: false, isCanceled: false }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
         );
     }
