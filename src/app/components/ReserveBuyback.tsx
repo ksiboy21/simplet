@@ -215,6 +215,9 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
+      // 계약서 서명 완료 전 이탈에 대비해 주문내역 선 저장
+      await addOrder(pendingOrderRef.current);
+
       // 계약서 URL + 워크플로우 ID 저장 → 완료 화면 표시 + 백그라운드 폴링 시작
       setContractUrl(data.signUrl);
       setWorkflowId(data.workflowId);
@@ -234,10 +237,19 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
-  // 서명 완료 후 주문 등록
+  // 서명 완료 후 처리
   const submitOrder = async (orderData: any) => {
     try {
-      await addOrder(orderData);
+      // 이미 handleSubmit에서 addOrder를 호출하여 주문이 저장되었으므로 여기서는 상태를 업데이트하고 확인 SMS만 발송합니다.
+
+      // 저장된 주문 찾기 (가장 최근 주문)
+      const existingOrders = await db.getUserOrders(orderData.phone);
+      const currentOrder = existingOrders[0];
+
+      if (currentOrder) {
+        await db.updateOrder(currentOrder.id, { status: '예약일정 대기중' });
+      }
+
       try {
         await sendSMS(orderData.phone, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
       } catch (smsError) {
@@ -247,9 +259,10 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       toast.success('계약서 서명이 완료되어 주문이 접수되었습니다!');
       pendingOrderRef.current = null;
       localStorage.removeItem(PENDING_ORDER_KEY);
+      if (onSuccess) onSuccess();
     } catch (error) {
       console.error('Order error:', error);
-      toast.error("주문 처리 중 오류가 발생했습니다.");
+      toast.error("처리 중 오류가 발생했습니다.");
     }
   };
 
