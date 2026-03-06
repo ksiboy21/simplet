@@ -275,7 +275,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
               setContractUrl(null);
               setWorkflowId(null);
               pendingOrderRef.current = null;
-              sessionStorage.removeItem(PENDING_ORDER_KEY);
               if (onSuccess) onSuccess();
             }}
             className="text-[14px] text-[#8B95A1] underline mt-2"
