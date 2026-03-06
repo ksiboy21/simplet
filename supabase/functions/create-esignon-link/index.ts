@@ -78,6 +78,7 @@ serve(async (req) => {
                 { name: "Check_0", value: orderDetails.voucherType === 'lotte_tomorrow' ? "1" : "0" }, // 유형 a선택했으면 Check_0 체크
                 { name: "Check_1", value: orderDetails.voucherType === 'lotte_custom' ? "1" : "0" }, // b선택했으면 Check_1 체크
                 { name: "Label_1", value: orderDetails.account_number || "" }, // 계좌번호
+                { name: "Label_2", value: String(orderDetails.deposit || 0) }, // 매매대금
                 { name: "DateTime_1", value: orderDetails.expected_date || "" }, // 예약일
                 { name: "Label_3", value: String(orderDetails.amount || 0) }, // 판매금액(액면가)
                 { name: "Check_2", value: "1" }, // 체크 고정
