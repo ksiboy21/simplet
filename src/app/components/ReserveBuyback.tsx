@@ -168,6 +168,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         amount: faceValue,
         deposit: deposit,
         rate: RATE_PERCENT,
+        bank_name: bankName,
+        account_number: accountNumber,
         voucherType,
         expected_date: availableDate,
       };
