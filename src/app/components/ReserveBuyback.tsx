@@ -238,22 +238,10 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold text-[#191F28]">신청이 완료되었습니다</h2>
             <p className="text-[15px] text-[#4E5968] leading-relaxed">
-              아래 버튼을 눌러 <span className="text-[#3182F6] font-semibold">전자계약서 작성</span>을 진행해주세요.<br />
-              카카오톡으로도 계약서 링크가 발송되었습니다.
-            </p>
-            <p className="text-[13px] text-[#8B95A1] mt-2">
+              카카오톡으로 <span className="text-[#3182F6] font-semibold">전자계약서</span>가 발송되었습니다.<br />
               계약서 서명이 완료되면 자동으로 주문이 접수됩니다.
             </p>
           </div>
-
-          <a
-            href={contractUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full max-w-xs block text-center bg-[#3182F6] text-white font-bold py-4 rounded-2xl text-[16px] shadow-lg hover:bg-[#1B64DA] transition-colors"
-          >
-            📝 계약서 작성하기
-          </a>
 
           <button
             onClick={() => {
