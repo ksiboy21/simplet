@@ -11,6 +11,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { cn } from '@/lib/utils';
 import { Zap, CalendarClock, Send, Home as HomeIcon } from 'lucide-react';
 import { db } from '@/lib/supabase';
+import { useEsignonPolling } from './hooks/useEsignonPolling';
 
 const TABS = [
   { id: 'home', label: '홈', icon: HomeIcon },
@@ -24,6 +25,9 @@ export default function App() {
   // Fetch global admin date from Supabase
   const [adminDate, setAdminDate] = useState('2026-01-30'); // Fallback default
 
+  // eSignon 전역 폴링 (백그라운드 서명 완료 감지)
+  useEsignonPolling();
+
   React.useEffect(() => {
     const fetchAdminDate = async () => {
       try {
@@ -34,6 +38,21 @@ export default function App() {
       }
     };
     fetchAdminDate();
+  }, []);
+
+  // 전역 eSignon 이벤트 리스너 (서명이 여러 탭을 오가도 백그라운드에서 완료될 때 화면 전환)
+  React.useEffect(() => {
+    const handleEsignonComplete = (e: any) => {
+      // 선택 사항: 완료 화면으로 전환할지 여부.
+      // 현재 사용자가 다른 탭을 보고 있을 때 억지로 전환하는 게 맞는지 고민 필요.
+      // 여기서는 성공 내역으로 강제 전환
+      setActiveTab('reserveSuccess');
+    };
+
+    window.addEventListener('esignon-completed', handleEsignonComplete);
+    return () => {
+      window.removeEventListener('esignon-completed', handleEsignonComplete);
+    };
   }, []);
 
   const handleNavigate = (tab: string) => {

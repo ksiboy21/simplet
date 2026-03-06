@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader, Input, Button, Card } from './ui/TossComponents';
 import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
 import { AgreementItem } from './ui/AgreementItem';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useRates, useTerms, useUserOrders } from '@/lib/useMockData';
+import { useRates, useTerms } from '@/lib/useMockData';
 import { db, supabase } from '@/lib/supabase';
-import { sendSMS } from '@/lib/solapi';
 
 interface ReserveBuybackProps {
   availableDate: string; // YYYY-MM-DD from Admin
@@ -21,7 +20,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   // Data Hooks
   const { rates } = useRates();
   const { terms } = useTerms();
-  const { addOrder } = useUserOrders();
 
   // Form State
   const [name, setName] = useState('');
@@ -55,21 +53,16 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
   // 서명 완료 대기 State
   const PENDING_ORDER_KEY = 'pendingEsignonOrder';
-  const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [contractUrl, setContractUrl] = useState<string | null>(null);
-  const pendingOrderRef = useRef<any>(null);
 
   // 컴포넌트 마운트 시 localStorage에서 대기 중인 주문 복원
   useEffect(() => {
     try {
       const saved = localStorage.getItem(PENDING_ORDER_KEY);
       if (saved) {
-        const { workflowId: savedWfId, contractUrl: savedUrl, orderData } = JSON.parse(saved);
-        if (savedWfId && orderData) {
-          pendingOrderRef.current = orderData;
-          setWorkflowId(savedWfId);
-          setContractUrl(savedUrl || 'restored');
-          console.log('Restored pending order from localStorage:', savedWfId);
+        const { contractUrl: savedUrl } = JSON.parse(saved);
+        if (savedUrl) {
+          setContractUrl(savedUrl);
         }
       }
     } catch (e) {
@@ -117,33 +110,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const faceValue = amount || 0;
   const { deposit, apply_rate: RATE_PERCENT } = calculateTotal(amount);
 
-  // eSignon 서명 상태 폴링 리스너
-  useEffect(() => {
-    let checkInterval: NodeJS.Timeout;
 
-    if (contractUrl && workflowId) {
-      checkInterval = setInterval(async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('check-esignon-status', {
-            body: { workflowId }
-          });
-
-          if (!error && data?.isComplete) {
-            clearInterval(checkInterval);
-            if (pendingOrderRef.current) {
-              await submitOrder(pendingOrderRef.current);
-            }
-          }
-        } catch (e) {
-          console.error("Status check error", e);
-        }
-      }, 3000); // 3초마다 상태 확인
-    }
-
-    return () => {
-      if (checkInterval) clearInterval(checkInterval);
-    };
-  }, [contractUrl, workflowId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,8 +157,8 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         agreedAt: checkedTerms[item.id]?.agreedAt || new Date().toISOString()
       })).filter(t => checkedTerms[t.id]?.checked) || [];
 
-      // 서명 완료 후 저장할 주문 데이터 준비 (아직 DB 저장 안함)
-      pendingOrderRef.current = {
+      // 서명 완료 후 추가할 주문 데이터 (여기선 저장하지 않고 대기열에 넘김)
+      const orderData = {
         name: voucherType === 'lotte_tomorrow' ? '롯데 모바일 익일' : '롯데 모바일 예약',
         amount: faceValue,
         deposit,
@@ -215,18 +182,14 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
-      // 계약서 서명 완료 전 이탈에 대비해 주문내역 선 저장
-      await addOrder(pendingOrderRef.current);
-
-      // 계약서 URL + 워크플로우 ID 저장 → 완료 화면 표시 + 백그라운드 폴링 시작
+      // 계약서 URL 저장 → 화면 표시
       setContractUrl(data.signUrl);
-      setWorkflowId(data.workflowId);
 
-      // localStorage에 저장 (페이지 이탈 대비)
+      // localStorage에 저장 (페이지 이탈 혹은 백그라운드 폴링 용도)
       localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({
         workflowId: data.workflowId,
         contractUrl: data.signUrl,
-        orderData: pendingOrderRef.current,
+        orderData: orderData,
       }));
 
     } catch (error: any) {
@@ -237,34 +200,7 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
-  // 서명 완료 후 처리
-  const submitOrder = async (orderData: any) => {
-    try {
-      // 이미 handleSubmit에서 addOrder를 호출하여 주문이 저장되었으므로 여기서는 상태를 업데이트하고 확인 SMS만 발송합니다.
 
-      // 저장된 주문 찾기 (가장 최근 주문)
-      const existingOrders = await db.getUserOrders(orderData.phone);
-      const currentOrder = existingOrders[0];
-
-      if (currentOrder) {
-        await db.updateOrder(currentOrder.id, { status: '예약일정 대기중' });
-      }
-
-      try {
-        await sendSMS(orderData.phone, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
-      } catch (smsError) {
-        console.error('SMS 발송 실패:', smsError);
-      }
-
-      toast.success('계약서 서명이 완료되어 주문이 접수되었습니다!');
-      pendingOrderRef.current = null;
-      localStorage.removeItem(PENDING_ORDER_KEY);
-      if (onSuccess) onSuccess();
-    } catch (error) {
-      console.error('Order error:', error);
-      toast.error("처리 중 오류가 발생했습니다.");
-    }
-  };
 
   // 신청 완료 + 서명 대기 화면
   if (contractUrl) {
@@ -285,9 +221,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
 
           <button
             onClick={() => {
-              setContractUrl(null);
-              setWorkflowId(null);
-              pendingOrderRef.current = null;
               if (onSuccess) onSuccess();
             }}
             className="text-[14px] text-[#8B95A1] underline mt-2"
