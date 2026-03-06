@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader, Input, Button, Card } from './ui/TossComponents';
 import { PhoneVerificationInput } from './ui/PhoneVerificationInput';
@@ -53,12 +53,12 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
     }
   };
 
-  // 서명 대기 모달 State
-  const [showWaitModal, setShowWaitModal] = useState(false);
-  const [workflowId, setWorkflowId] = useState<number | null>(null);
+  // 서명 대기 모달 State (unused but kept for reference)
+  // const [showWaitModal, setShowWaitModal] = useState(false);
+  // const [workflowId, setWorkflowId] = useState<number | null>(null);
 
-  // 서명 완료 콜백을 위한 ref (최신 order data snapshot 유지)
-  const pendingOrderRef = useRef<any>(null);
+  // 서명 완료 콜백을 위한 ref
+  // const pendingOrderRef = useRef<any>(null);
 
   // Dynamic Terms State
   type TermState = { checked: boolean; agreedAt?: string };
@@ -101,44 +101,12 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
   const faceValue = amount || 0;
   const { deposit, apply_rate: RATE_PERCENT } = calculateTotal(amount);
 
-  // eSignon 서명 상태 폴링 리스너
-  useEffect(() => {
-    let checkInterval: NodeJS.Timeout;
-
-    if (showWaitModal && workflowId) {
-      checkInterval = setInterval(async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('check-esignon-status', {
-            body: { workflowId }
-          });
-
-          if (!error && data?.isComplete) {
-            clearInterval(checkInterval);
-            if (pendingOrderRef.current) {
-              await submitOrder(pendingOrderRef.current);
-            }
-          }
-        } catch (e) {
-          console.error("Status check error", e);
-        }
-      }, 3000); // 3초마다 상태 확인
-    }
-
-    return () => {
-      if (checkInterval) clearInterval(checkInterval);
-    };
-  }, [showWaitModal, workflowId]);
-
-  const handleCancelSign = () => {
-    setShowWaitModal(false);
-    setWorkflowId(null);
-    pendingOrderRef.current = null;
-    toast.info("선매입 신청이 취소되었습니다.");
-  };
+  // 신청 완료 후 계약서 URL 저장
+  const [contractUrl, setContractUrl] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || showWaitModal) return;
+    if (isSubmitting) return;
     if (!amount) return toast.error("판매금액을 선택해주세요.");
     if (!name) return toast.error("성함을 입력해주세요.");
     if (!contact) return toast.error("연락처를 입력해주세요.");
@@ -181,7 +149,16 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         agreedAt: checkedTerms[item.id]?.agreedAt || new Date().toISOString()
       })).filter(t => checkedTerms[t.id]?.checked) || [];
 
-      pendingOrderRef.current = {
+      // eSignon 계약서 생성
+      const { data, error } = await supabase.functions.invoke('create-esignon-link', {
+        body: { orderDetails }
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      // 주문 즉시 등록
+      const orderData = {
         name: voucherType === 'lotte_tomorrow' ? '롯데 모바일 익일' : '롯데 모바일 예약',
         amount: faceValue,
         deposit,
@@ -197,80 +174,68 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
         term_agreements: termAgreements,
       };
 
-      const { data, error } = await supabase.functions.invoke('create-esignon-link', {
-        body: { orderDetails }
-      });
+      await addOrder(orderData);
 
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
+      // SMS 발송
+      try {
+        await sendSMS(contact, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
+      } catch (smsError) {
+        console.error('SMS 발송 실패:', smsError);
+      }
 
-      // 팝업 없이 대기 모달 표시 & 폴링 시작
-      setWorkflowId(data.workflowId);
-      setShowWaitModal(true);
+      // 계약서 URL 저장 → 완료 화면 표시
+      setContractUrl(data.signUrl);
 
     } catch (error: any) {
       console.error('eSignon Error:', error);
-      toast.error(`계약서 생성 실패: ${error.message}`);
+      toast.error(`신청 실패: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const submitOrder = async (orderData: any) => {
-    setIsSubmitting(true);
-    try {
-      await addOrder(orderData);
-      try {
-        await sendSMS(orderData.phone, `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`);
-      } catch (smsError) {
-        console.error('SMS 발송 실패:', smsError);
-      }
+  // 신청 완료 화면
+  if (contractUrl) {
+    return (
+      <div className="max-w-md mx-auto pb-20">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 px-4">
+          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
+            <span className="text-4xl">✅</span>
+          </div>
 
-      toast.success('선매입 신청이 완료되었습니다!');
-      pendingOrderRef.current = null;
-      setShowWaitModal(false);
-      setWorkflowId(null);
-      setIsSubmitting(false);
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold text-[#191F28]">신청이 완료되었습니다</h2>
+            <p className="text-[15px] text-[#4E5968] leading-relaxed">
+              아래 버튼을 눌러 <span className="text-[#3182F6] font-semibold">전자계약서 작성</span>을 진행해주세요.<br />
+              카카오톡으로도 계약서 링크가 발송되었습니다.
+            </p>
+          </div>
 
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error) {
-      console.error('Order error:', error);
-      toast.error("주문 처리 중 오류가 발생했습니다.");
-      setIsSubmitting(false);
-    }
-  };
+          <a
+            href={contractUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full max-w-xs block text-center bg-[#3182F6] text-white font-bold py-4 rounded-2xl text-[16px] shadow-lg hover:bg-[#1B64DA] transition-colors"
+          >
+            📝 계약서 작성하기
+          </a>
+
+          <button
+            onClick={() => {
+              setContractUrl(null);
+              if (onSuccess) onSuccess();
+            }}
+            className="text-[14px] text-[#8B95A1] underline mt-2"
+          >
+            홈으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto pb-20">
-      {/* 카카오톡 서명 대기 모달 */}
-      {showWaitModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 transition-opacity">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center animate-pulse">
-              <span className="text-3xl">📱</span>
-            </div>
-
-            <h2 className="text-xl font-bold text-[#191F28]">카카오톡 확인 중</h2>
-            <p className="text-[15px] font-medium text-[#4E5968] leading-relaxed">
-              입력하신 연락처로 전자계약서가 발송되었습니다.<br />
-              <span className="text-[#3182F6] font-semibold">카카오톡 서명이 완료되면</span> 자동으로 신청이 접수됩니다.
-            </p>
-
-            <div className="mt-8 pt-4 border-t border-gray-100">
-              <Button
-                variant="secondary"
-                fullWidth
-                onClick={handleCancelSign}
-              >
-                신청 취소하기
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <AnimatePresence mode="wait">
         <motion.div
           key="step2"
@@ -473,6 +438,6 @@ export const ReserveBuyback = ({ availableDate, onSuccess }: ReserveBuybackProps
           </form>
         </motion.div>
       </AnimatePresence>
-    </div>
+    </div >
   );
 };
