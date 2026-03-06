@@ -63,7 +63,7 @@ serve(async (req) => {
             is_preview: false,
             recipient_list: [
                 {
-                    email: "01073767012", // 1번째 수신인 (고정)
+                    email: "01064681157", // 1번째 수신인 (고정)
                     name: "심플티켓",
                     order: 1,
                 },
