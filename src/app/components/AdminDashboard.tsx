@@ -10,9 +10,8 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useOrders, useRates, useTerms, Rate, Order } from '@/lib/useMockData';
 import { Terms } from '@/lib/mockDb';
-import { db, supabase } from '@/lib/supabase';
+import { db } from '@/lib/supabase';
 import { ContractModal } from './ContractModal';
-import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 interface AdminDashboardProps {
   currentDate: string;
@@ -979,55 +978,18 @@ const TermsManagement = () => {
 export const AdminDashboard = ({ currentDate, onDateChange, onExit }: AdminDashboardProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeMenu, setActiveMenu] = useState('orders');
-  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setIsAuthenticated(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleGitHubLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      toast.error('로그인 중 오류가 발생했습니다: ' + error.message);
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email === 'ksiboy22@naver.com' && password === 'Djajeo21!!') {
+      setIsAuthenticated(true);
+      toast.success('관리자님 환영합니다.');
+    } else {
+      toast.error('아이디 또는 비밀번호를 확인해주세요.');
     }
   };
-
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setIsAuthenticated(false);
-      toast.success('로그아웃 되었습니다.');
-    } catch (error: any) {
-      toast.error('로그아웃 중 오류가 발생했습니다: ' + error.message);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F2F4F6]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0064FF]"></div>
-      </div>
-    );
-  }
 
   if (!isAuthenticated) {
     return (
@@ -1038,22 +1000,35 @@ export const AdminDashboard = ({ currentDate, onDateChange, onExit }: AdminDashb
               <Settings size={24} />
             </div>
             <h1 className="text-2xl font-bold text-[#191F28]">관리자 로그인</h1>
-            <p className="text-[#8B95A1] text-[15px]">서비스 관리를 위해 깃허브로 로그인해주세요.</p>
+            <p className="text-[#8B95A1] text-[15px]">서비스 관리를 위해 로그인해주세요.</p>
           </div>
 
-          <div className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="email"
+                placeholder="이메일"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-12"
+              />
+              <Input
+                type="password"
+                placeholder="비밀번호"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-12"
+              />
+            </div>
             <Button
+              type="submit"
               fullWidth
               size="lg"
-              onClick={handleGitHubLogin}
-              className="h-12 text-[16px] font-bold flex items-center justify-center gap-2 bg-[#24292F] hover:bg-[#24292F]/90 text-white border-none"
+              className="h-12 text-[16px] font-bold bg-[#0064FF] hover:bg-[#0050CC] text-white border-none"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-              </svg>
-              GitHub로 로그인
+              로그인
             </Button>
-          </div>
+          </form>
 
           <button
             onClick={onExit}
@@ -1099,7 +1074,7 @@ export const AdminDashboard = ({ currentDate, onDateChange, onExit }: AdminDashb
 
         <div className="p-3 border-t border-gray-50 flex flex-col gap-1">
           <button
-            onClick={handleLogout}
+            onClick={() => { setIsAuthenticated(false); toast.success('로그아웃 되었습니다.'); }}
             className="w-full flex items-center gap-2 px-3 py-2.5 text-red-500 font-medium text-xs hover:bg-red-50 rounded-xl transition-colors"
           >
             <LogOut size={16} />
