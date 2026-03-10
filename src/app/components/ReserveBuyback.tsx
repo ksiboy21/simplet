@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useRates, useTerms } from '@/lib/useMockData';
 import { db, supabase } from '@/lib/supabase';
+import { sendSMS } from '@/lib/solapi';
 
 interface ReserveBuybackProps {
   availableDate: string; // YYYY-MM-DD from Admin
@@ -195,8 +196,16 @@ export const ReserveBuyback = ({ availableDate }: ReserveBuybackProps) => {
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
-      // 계약서 생성 즉시 주문 저장
+      // 계약서 생성 즉시 주문 저장 + SMS 발송
       await db.addOrder(orderData);
+      try {
+        await sendSMS(
+          contact,
+          `안녕하세요, 고객님. 주문이 정상적으로 접수되었습니다.\n검토 결과에 따라 매입이 반려될 수 있는 점 양해 부탁드립니다.\n진행 상황은 [주문내역] 페이지에서 실시간으로 확인하실 수 있습니다.`
+        );
+      } catch (smsError) {
+        console.error('SMS 발송 실패:', smsError);
+      }
 
       // 계약서 URL 저장 → 화면 표시
       setContractUrl(data.signUrl);
