@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useRates, useTerms } from '@/lib/useMockData';
 import { db, supabase } from '@/lib/supabase';
-import { encryptData } from '@/lib/encryption';
 
 interface ReserveBuybackProps {
   availableDate: string; // YYYY-MM-DD from Admin
@@ -196,29 +195,11 @@ export const ReserveBuyback = ({ availableDate }: ReserveBuybackProps) => {
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
+      // 계약서 생성 즉시 주문 저장
+      await db.addOrder(orderData);
+
       // 계약서 URL 저장 → 화면 표시
       setContractUrl(data.signUrl);
-
-      // localStorage에 저장 (클라이언트 폴링 백업용)
-      localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({
-        workflowId: data.workflowId,
-        contractUrl: data.signUrl,
-        orderData: orderData,
-      }));
-
-      // DB에도 저장 (탭 닫혀도 서버에서 처리)
-      const { is_my_order: _, ...orderPayload } = orderData;
-      const encryptedPayload = {
-        ...orderPayload,
-        phone: encryptData(orderPayload.phone),
-        applicant_name: encryptData(orderPayload.applicant_name),
-        bank_name: encryptData(orderPayload.bank_name),
-        account_number: encryptData(orderPayload.account_number),
-      };
-      await supabase.from('pending_signatures').insert({
-        workflow_id: data.workflowId,
-        order_data: encryptedPayload,
-      });
 
     } catch (error: any) {
       console.error('eSignon Error:', error);
