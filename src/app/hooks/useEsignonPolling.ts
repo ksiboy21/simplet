@@ -1,14 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useUserOrders } from '@/lib/useMockData';
+import { db, supabase } from '@/lib/supabase';
 import { sendSMS } from '@/lib/solapi';
 import { toast } from 'sonner';
 
 export const PENDING_ORDER_KEY = 'pendingEsignonOrder';
 
 export const useEsignonPolling = () => {
-  const { addOrder } = useUserOrders();
-  const checkIntervalRef = useRef<NodeJS.Timeout>();
+  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
@@ -30,7 +28,6 @@ export const useEsignonPolling = () => {
         }
 
         if (data?.isCanceled) {
-          console.log("eSignon signature canceled or rejected.");
           toast.error("전자서명이 취소 또는 거절되었습니다.");
           localStorage.removeItem(PENDING_ORDER_KEY);
           window.dispatchEvent(new CustomEvent('esignon-canceled'));
@@ -38,8 +35,7 @@ export const useEsignonPolling = () => {
         }
 
         if (data?.isComplete) {
-          isSubmittingRef.current = true; // 중복 제출 방지
-          // 서명 완료
+          isSubmittingRef.current = true;
           await submitOrder(orderData);
         }
       } catch (e) {
@@ -47,17 +43,16 @@ export const useEsignonPolling = () => {
       }
     };
 
-    // 3초마다 체크
     checkIntervalRef.current = setInterval(checkStatus, 3000);
 
     return () => {
       if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
     };
-  }, [addOrder]); // Added dependency
+  }, []); // 마운트 한 번만 실행 — addOrder 의존성 제거로 인터벌 리셋 방지
 
   const submitOrder = async (orderData: any) => {
     try {
-      await addOrder(orderData);
+      await db.addOrder(orderData); // useUserOrders 대신 db 직접 호출
       try {
         await sendSMS(
           orderData.phone,
@@ -69,8 +64,6 @@ export const useEsignonPolling = () => {
 
       toast.success('계약서 서명이 완료되어 주문이 접수되었습니다!');
       localStorage.removeItem(PENDING_ORDER_KEY);
-
-      // 예약 매입 서명 완료 시뮬레이션 이벤트 디스패치 (App.tsx 등에서 감지하여 화면 전환 처리)
       window.dispatchEvent(new CustomEvent('esignon-completed', { detail: orderData }));
     } catch (error) {
       console.error('Order error:', error);
