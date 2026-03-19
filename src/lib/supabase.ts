@@ -156,9 +156,7 @@ export const db = {
     async addOrder(order: Partial<Order>) {
         const { is_my_order, id, created_at, updated_at, ...payload } = order;
 
-        // Encrypt sensitive fields
-        if (payload.phone) payload.phone = encryptData(payload.phone);
-        if (payload.applicant_name) payload.applicant_name = encryptData(payload.applicant_name);
+        // Encrypt sensitive fields (phone/name 제외)
         if (payload.email) payload.email = encryptData(payload.email);
         if (payload.bank_name) payload.bank_name = encryptData(payload.bank_name);
         if (payload.account_number) payload.account_number = encryptData(payload.account_number);
@@ -183,10 +181,8 @@ export const db = {
     },
 
     async updateOrder(id: string, updates: Partial<Order>) {
-        // Encrypt sensitive fields if they are being updated
+        // Encrypt sensitive fields if they are being updated (phone/name 제외)
         const payload = { ...updates };
-        if (payload.phone) payload.phone = encryptData(payload.phone);
-        if (payload.applicant_name) payload.applicant_name = encryptData(payload.applicant_name);
         if (payload.email) payload.email = encryptData(payload.email);
         if (payload.bank_name) payload.bank_name = encryptData(payload.bank_name);
         if (payload.account_number) payload.account_number = encryptData(payload.account_number);
