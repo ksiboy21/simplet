@@ -159,8 +159,8 @@ async function main() {
     for (const order of targetOrders) {
         if (!order.expected_date) continue;
 
-        const phone = decrypt(phone);
-        const applicantName = decrypt(applicantName);
+        const phone = decrypt(order.phone);
+        const applicantName = decrypt(order.applicant_name);
 
         // Parse YYYY-MM-DD string to Local Midnight Date object
         const [y, m, d] = order.expected_date.split('-').map(Number);
