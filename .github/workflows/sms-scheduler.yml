@@ -29,4 +29,5 @@ jobs:
           VITE_SOLAPI_API_KEY: ${{ secrets.VITE_SOLAPI_API_KEY }}
           VITE_SOLAPI_API_SECRET: ${{ secrets.VITE_SOLAPI_API_SECRET }}
           VITE_SOLAPI_SENDER_NUMBER: ${{ secrets.VITE_SOLAPI_SENDER_NUMBER }}
+          VITE_ENCRYPTION_KEY: ${{ secrets.VITE_ENCRYPTION_KEY }}
         run: node src/scripts/send-reminders.js
