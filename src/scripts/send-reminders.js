@@ -13,7 +13,8 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 const SOLAPI_API_KEY = process.env.VITE_SOLAPI_API_KEY;
 const SOLAPI_API_SECRET = process.env.VITE_SOLAPI_API_SECRET;
 const SENDER_NUMBER = process.env.VITE_SOLAPI_SENDER_NUMBER;
-const SITE_URL = "https://simpletk.co.kr/"; // Update with actual domain
+const ENCRYPTION_KEY = process.env.VITE_ENCRYPTION_KEY || 'simpleticket_secure_key_2026';
+const SITE_URL = "https://simpletk.co.kr/";
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
     console.error('Missing environment variables');
@@ -21,6 +22,27 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !SOLAPI_API_KEY || !SOLAPI_API_SECRET) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function decrypt(text) {
+    if (!text || !text.startsWith('ENC:')) return text;
+    try {
+        const cipherData = Buffer.from(text.substring(4), 'base64');
+        if (cipherData.slice(0, 8).toString() !== 'Salted__') return text;
+        const salt = cipherData.subarray(8, 16);
+        const ciphertext = cipherData.subarray(16);
+        let prev = Buffer.alloc(0);
+        const derived = Buffer.alloc(48);
+        let offset = 0;
+        while (offset < 48) {
+            const hash = crypto.createHash('md5').update(Buffer.concat([prev, Buffer.from(ENCRYPTION_KEY), salt])).digest();
+            hash.copy(derived, offset);
+            offset += hash.length;
+            prev = hash;
+        }
+        const decipher = crypto.createDecipheriv('aes-256-cbc', derived.subarray(0, 32), derived.subarray(32, 48));
+        return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+    } catch { return text; }
+}
 
 // --- Solapi Helper (Node.js version) ---
 async function sendSMS(to, text, retries = 3, delayMs = 2000) {
@@ -137,6 +159,9 @@ async function main() {
     for (const order of targetOrders) {
         if (!order.expected_date) continue;
 
+        const phone = decrypt(phone);
+        const applicantName = decrypt(applicantName);
+
         // Parse YYYY-MM-DD string to Local Midnight Date object
         const [y, m, d] = order.expected_date.split('-').map(Number);
         const reserveDate = new Date(y, m - 1, d);
@@ -156,12 +181,12 @@ async function main() {
 
         if (diffDays === 1) {
             // D-1
-            message = `안녕하세요, ${order.applicant_name}님. 내일은 약정하신 날입니다.
+            message = `안녕하세요, ${applicantName}님. 내일은 약정하신 날입니다.
 원활한 진행을 위해 신청 내역을 미리 확인해 주세요.
 ${SITE_URL}`;
         } else if (diffDays === 0) {
             // D-Day
-            message = `안녕하세요, ${order.applicant_name}님. 오늘은 약정하신 날입니다.
+            message = `안녕하세요, ${applicantName}님. 오늘은 약정하신 날입니다.
 아래 링크를 통해 약정하신 상품권을 첨부해 주시면 신속히 처리해 드리겠습니다. 감사합니다.
 ${SITE_URL}`;
         } else if (diffDays < 0) {
@@ -182,23 +207,23 @@ ${SITE_URL}`;
             // So if overdueDays > 7, check if (overdueDays - 7) % 7 === 0.
 
             if (overdueDays <= 7) {
-                message = `안녕하세요, ${order.applicant_name}님. 약정일로부터 ${overdueDays}일이 경과하였으나 상품권이 아직 첨부되지 않았습니다.
+                message = `안녕하세요, ${applicantName}님. 약정일로부터 ${overdueDays}일이 경과하였으나 상품권이 아직 첨부되지 않았습니다.
 지속적인 미이행 시, 이용 약관에 따라 더치트 등록 및 민·형사상 법적 절차가 진행될 수 있음을 엄중히 안내드립니다. 조속한 이행 부탁드립니다.`;
             } else if (overdueDays % 7 === 1) {
                 // e.g. D+8 (8%7=1), D+15 (15%7=1) -> Weekly starting right after the first week.
                 const weeks = Math.floor(overdueDays / 7);
-                message = `${order.applicant_name}님, 약정일로부터 ${overdueDays}일(${weeks}주)이 경과하였으며 현재 귀하의 계약 불이행으로 인해 법적 조치 중입니다.
+                message = `${applicantName}님, 약정일로부터 ${overdueDays}일(${weeks}주)이 경과하였으며 현재 귀하의 계약 불이행으로 인해 법적 조치 중입니다.
 형사 고소와 별개로, 본 계약 의무 불이행으로 발생하는 채권추심 및 민사 소송 비용(송달료, 인지대, 변호사 보수 등) 일체는 판매자인 귀하의 전액 부담으로 청구됩니다. 더 큰 불이익이 발생하기 전에 해결하시기 바랍니다.`;
             }
         }
 
 
         if (message) {
-            console.log(`Sending reminder to ${order.name} (${order.phone}) - D${diffDays >= 0 ? '-' + diffDays : '+' + Math.abs(diffDays)}`);
+            console.log(`Sending reminder to ${order.name} (${phone}) - D${diffDays >= 0 ? '-' + diffDays : '+' + Math.abs(diffDays)}`);
             if (dryRun) {
                 console.log(`[DRY-RUN] Would send message:\n${message}\n`);
             } else {
-                await sendSMS(order.phone, message);
+                await sendSMS(phone, message);
             }
         }
     }
